@@ -6,14 +6,12 @@ import {
   Calendar,
   CheckCircle2,
   FileText,
-  Lock,
   MapPin,
   Save,
-  Send,
 } from "lucide-react";
 import { ReferenceDesa, SyncRecord } from "@/app/lib/auth";
 import { LocalLuasAreal } from "@/app/lib/offline-store";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +71,6 @@ export default function LuasArealEntry({
       luasPanen: string;
       luasPuso: string;
       catatan: string;
-      status: "draft" | "submitted";
     };
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -100,9 +97,6 @@ export default function LuasArealEntry({
         ? ""
         : String(existingRecord.luas_puso_ha),
     catatan: existingRecord?.catatan ?? "",
-    status: (existingRecord?.status === "draft"
-      ? "draft"
-      : "submitted") as "draft" | "submitted",
   };
   const formValues =
     editedForm?.key === formKey ? editedForm.values : initialValues;
@@ -120,20 +114,13 @@ export default function LuasArealEntry({
     }));
   }
 
-  const isVerified = existingRecord?.status === "verified";
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>, status: "draft" | "submitted") {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
 
     if (!desaId) {
       setError("Pilih desa terlebih dahulu.");
-      return;
-    }
-
-    if (isVerified) {
-      setError("Laporan yang sudah diverifikasi tidak dapat diubah.");
       return;
     }
 
@@ -163,7 +150,6 @@ export default function LuasArealEntry({
         luas_panen_ha: luasPanen,
         luas_puso_ha: luasPuso,
         catatan: formValues.catatan.trim() || null,
-        status,
         updated_at: new Date().toISOString(),
         synced_at: null,
         deleted: false,
@@ -172,11 +158,9 @@ export default function LuasArealEntry({
 
       await onSave(record);
       setSuccess(
-        status === "draft"
-          ? "Laporan luas areal disimpan sebagai draft di perangkat ini."
-          : isOnline
-            ? "Laporan luas areal diajukan untuk verifikasi admin."
-            : "Laporan luas areal disimpan offline. Akan dikirim otomatis saat online."
+        isOnline
+          ? "Laporan luas areal berhasil disimpan."
+          : "Laporan luas areal tersimpan offline. Akan disinkronkan saat online."
       );
     } catch (saveError: unknown) {
       setError(
@@ -225,21 +209,9 @@ export default function LuasArealEntry({
           </Alert>
         )}
 
-        {isVerified && (
-          <Alert variant="info" className="mb-6">
-            <Lock className="size-4" />
-            <div>
-              <AlertTitle className="text-sm font-semibold">Laporan Telah Terverifikasi</AlertTitle>
-              <AlertDescription className="text-xs">
-                Laporan untuk periode {monthNames[bulan - 1]} {tahun} telah diverifikasi oleh administrator dan terkunci dari perubahan.
-              </AlertDescription>
-            </div>
-          </Alert>
-        )}
-
         <form
           id="luas-areal-form"
-          onSubmit={(e) => void handleSubmit(e, "submitted")}
+          onSubmit={(e) => void handleSubmit(e)}
           className="space-y-6"
         >
           {/* Section: Filter Lokasi & Periode */}
@@ -319,7 +291,6 @@ export default function LuasArealEntry({
                   type="number"
                   step="0.01"
                   min="0"
-                  disabled={isVerified}
                   required
                   placeholder="0.00"
                   value={formValues.luasTanam}
@@ -334,7 +305,6 @@ export default function LuasArealEntry({
                   type="number"
                   step="0.01"
                   min="0"
-                  disabled={isVerified}
                   required
                   placeholder="0.00"
                   value={formValues.luasPanen}
@@ -352,7 +322,6 @@ export default function LuasArealEntry({
                   type="number"
                   step="0.01"
                   min="0"
-                  disabled={isVerified}
                   placeholder="0.00"
                   value={formValues.luasPuso}
                   onChange={(e) => updateForm("luasPuso", e.target.value)}
@@ -367,7 +336,6 @@ export default function LuasArealEntry({
             <Textarea
               id="catatan_areal"
               rows={3}
-              disabled={isVerified}
               placeholder="Faktor cuaca, banjir, kekeringan, serangan hama, atau keterangan lainnya..."
               value={formValues.catatan}
               onChange={(e) => updateForm("catatan", e.target.value)}
@@ -379,42 +347,21 @@ export default function LuasArealEntry({
       <CardFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border pt-6">
         <p className="text-xs text-muted-foreground">
           {existingRecord
-            ? `Status data saat ini: ${existingRecord.status}`
-            : "Data baru belum pernah disimpan untuk periode ini."}
+            ? "Laporan untuk periode ini sudah ada dan dapat diperbarui."
+            : "Data akan langsung tersimpan dan bisa diperbarui kapan saja."}
         </p>
 
-        {!isVerified && (
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSaving}
-              onClick={(e) => {
-                const form = (e.currentTarget.closest(".shadow-md")?.querySelector("#luas-areal-form") as HTMLFormElement) ?? null;
-                if (form) {
-                  const syntheticEvent = {
-                    preventDefault: () => {},
-                  } as FormEvent<HTMLFormElement>;
-                  void handleSubmit(syntheticEvent, "draft");
-                }
-              }}
-              className="flex-1 sm:flex-none gap-2"
-            >
-              <Save className="size-4" />
-              <span>Simpan Draft</span>
-            </Button>
-
-            <Button
-              type="submit"
-              form="luas-areal-form"
-              disabled={isSaving}
-              className="flex-1 sm:flex-none gap-2 font-semibold shadow-xs"
-            >
-              <Send className="size-4" />
-              <span>{isSaving ? "Menyimpan..." : "Kirim Pengajuan"}</span>
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <Button
+            type="submit"
+            form="luas-areal-form"
+            disabled={isSaving}
+            className="flex-1 sm:flex-none gap-2 font-semibold shadow-xs"
+          >
+            <Save className="size-4" />
+            <span>{isSaving ? "Menyimpan..." : "Simpan Laporan"}</span>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

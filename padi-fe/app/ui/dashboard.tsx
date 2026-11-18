@@ -61,6 +61,7 @@ export default function Dashboard({
   const [localLuasAreal, setLocalLuasAreal] = useState<LocalLuasAreal[]>([]);
   const [isProvitasEntryOpen, setIsProvitasEntryOpen] = useState(false);
   const [isAreaEntryOpen, setIsAreaEntryOpen] = useState(false);
+  const [editingProvitas, setEditingProvitas] = useState<SyncRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [syncError, setSyncError] = useState("");
@@ -238,14 +239,12 @@ export default function Dashboard({
   const pendingProvitas = localProvitas.filter(
     (record) =>
       (!record.synced_at || record.sync_error) &&
-      !record.deleted &&
-      record.status !== "verified"
+      !record.deleted
   );
   const pendingLuasAreal = localLuasAreal.filter(
     (record) =>
       (!record.synced_at || record.sync_error) &&
-      !record.deleted &&
-      record.status !== "verified"
+      !record.deleted
   );
   const automaticSyncSignature =
     localProvitas
@@ -253,8 +252,7 @@ export default function Dashboard({
         (record) =>
           !record.synced_at &&
           !record.sync_error &&
-          !record.deleted &&
-          record.status !== "verified"
+          !record.deleted
       )
       .map((record) => `${record.id}:${record.updated_at}`)
       .sort()
@@ -265,8 +263,7 @@ export default function Dashboard({
         (record) =>
           !record.synced_at &&
           !record.sync_error &&
-          !record.deleted &&
-          record.status !== "verified"
+          !record.deleted
       )
       .map((record) => `${record.id}:${record.updated_at}`)
       .sort()
@@ -275,7 +272,24 @@ export default function Dashboard({
   async function handleSaveProvitas(record: LocalProvitas) {
     await saveLocalProvitas(user.id, record);
     setLocalProvitas(await getLocalProvitas(user.id));
+    if (editingProvitas?.id === record.id) setEditingProvitas(null);
     setSyncError("");
+  }
+
+  function handleEditProvitas(record: SyncRecord) {
+    setEditingProvitas(record);
+    setIsProvitasEntryOpen(true);
+    setSection("provitas");
+  }
+
+  function handleToggleProvitasEntry() {
+    if (isProvitasEntryOpen) setEditingProvitas(null);
+    setIsProvitasEntryOpen(!isProvitasEntryOpen);
+  }
+
+  function handleCancelEditProvitas() {
+    setEditingProvitas(null);
+    setIsProvitasEntryOpen(false);
   }
 
   async function handleSaveLuasAreal(record: LocalLuasAreal) {
@@ -299,16 +313,14 @@ export default function Dashboard({
             (automatic
               ? !record.synced_at && !record.sync_error
               : !record.synced_at || record.sync_error) &&
-            !record.deleted &&
-            record.status !== "verified"
+            !record.deleted
         );
         const pendingAreaRecords = (await getLocalLuasAreal(user.id)).filter(
           (record) =>
             (automatic
               ? !record.synced_at && !record.sync_error
               : !record.synced_at || record.sync_error) &&
-            !record.deleted &&
-            record.status !== "verified"
+            !record.deleted
         );
         const lastSync = await getLastSync(user.id);
         const result = await syncProvitas(
@@ -341,14 +353,14 @@ export default function Dashboard({
         setReferences(referenceData);
 
         const accepted =
-          result.hasil.provitas.filter((item) => item.status === "diterima")
+          result.hasil.provitas.filter((item) => item.hasil_sync === "diterima")
             .length +
-          result.hasil.luas_areal.filter((item) => item.status === "diterima")
+          result.hasil.luas_areal.filter((item) => item.hasil_sync === "diterima")
             .length;
         const rejected =
-          result.hasil.provitas.filter((item) => item.status === "ditolak")
+          result.hasil.provitas.filter((item) => item.hasil_sync === "ditolak")
             .length +
-          result.hasil.luas_areal.filter((item) => item.status === "ditolak")
+          result.hasil.luas_areal.filter((item) => item.hasil_sync === "ditolak")
             .length;
 
         if (
@@ -442,7 +454,7 @@ export default function Dashboard({
                     <p className="max-w-xl text-sm leading-relaxed text-emerald-100/90 pt-1">
                       {user.role === "ppl"
                         ? "Pantau wilayah penugasan, catat ubinan provitas, dan rekapitulasi luas areal padi."
-                        : "Verifikasi pengajuan laporan lapangan dari para penyuluh pertanian."}
+                        : "Kelola akun, wilayah, lahan, musim tanam, dan penugasan PPL."}
                     </p>
                   </div>
 
@@ -454,8 +466,9 @@ export default function Dashboard({
                         if (section === "luas_areal") {
                           setIsAreaEntryOpen((open) => !open);
                         } else if (section === "provitas") {
-                          setIsProvitasEntryOpen((open) => !open);
+                          handleToggleProvitasEntry();
                         } else {
+                          setEditingProvitas(null);
                           setSection("provitas");
                           setIsProvitasEntryOpen(true);
                         }
@@ -541,10 +554,13 @@ export default function Dashboard({
                 isProvitasEntryOpen={isProvitasEntryOpen}
                 isAreaEntryOpen={isAreaEntryOpen}
                 onSectionChange={setSection}
-                onToggleProvitasEntry={() => setIsProvitasEntryOpen((open) => !open)}
+                onToggleProvitasEntry={handleToggleProvitasEntry}
                 onToggleAreaEntry={() => setIsAreaEntryOpen((open) => !open)}
                 onSaveProvitas={handleSaveProvitas}
                 onSaveLuasAreal={handleSaveLuasAreal}
+                onEditProvitas={handleEditProvitas}
+                editingProvitas={editingProvitas}
+                onCancelEditProvitas={handleCancelEditProvitas}
               />
 
               <footer className="flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

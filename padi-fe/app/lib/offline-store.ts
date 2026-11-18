@@ -143,7 +143,7 @@ export async function updateProvitasAfterSync(
   records: LocalProvitas[],
   result: {
     id: string;
-    status: "diterima" | "ditolak";
+    hasil_sync: "diterima" | "ditolak";
     alasan: string | null;
     versi_server?: SyncRecord;
   }[],
@@ -162,7 +162,7 @@ export async function updateProvitasAfterSync(
       const syncResult = resultById.get(localRecord.id);
       const serverRecord = serverById.get(localRecord.id) ?? syncResult?.versi_server;
 
-      if (syncResult?.status === "ditolak") {
+      if (syncResult?.hasil_sync === "ditolak") {
         store.put({
           ...(syncResult.versi_server ?? localRecord),
           sync_error: syncResult.alasan ?? "Record ditolak oleh server.",
@@ -172,7 +172,7 @@ export async function updateProvitasAfterSync(
 
       if (serverRecord) {
         store.put({ ...serverRecord, sync_error: null });
-      } else if (syncResult?.status === "diterima") {
+      } else if (syncResult?.hasil_sync === "diterima") {
         store.put({
           ...localRecord,
           synced_at: serverTime,
@@ -207,7 +207,7 @@ export async function updateLuasArealAfterSync(
   records: LocalLuasAreal[],
   result: {
     id: string;
-    status: "diterima" | "ditolak";
+    hasil_sync: "diterima" | "ditolak";
     alasan: string | null;
     versi_server?: SyncRecord;
   }[],
@@ -227,7 +227,7 @@ export async function updateLuasArealAfterSync(
       const serverRecord =
         serverById.get(localRecord.id) ?? syncResult?.versi_server;
 
-      if (syncResult?.status === "ditolak") {
+      if (syncResult?.hasil_sync === "ditolak") {
         store.put({
           ...(syncResult.versi_server ?? localRecord),
           sync_error: syncResult.alasan ?? "Laporan ditolak oleh server.",
@@ -237,7 +237,7 @@ export async function updateLuasArealAfterSync(
 
       if (serverRecord) {
         store.put({ ...serverRecord, sync_error: null });
-      } else if (syncResult?.status === "diterima") {
+      } else if (syncResult?.hasil_sync === "diterima") {
         store.put({
           ...localRecord,
           synced_at: serverTime,

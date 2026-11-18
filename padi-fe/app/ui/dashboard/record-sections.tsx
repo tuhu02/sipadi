@@ -24,6 +24,9 @@ export function ProvitasSection({
   isOnline,
   onToggleEntry,
   onSave,
+  onEdit,
+  editRecord,
+  onCancelEdit,
 }: {
   references: References | null;
   records: SyncRecord[];
@@ -34,18 +37,24 @@ export function ProvitasSection({
   isOnline: boolean;
   onToggleEntry: () => void;
   onSave: (record: LocalProvitas) => Promise<void>;
+  onEdit: (record: SyncRecord) => void;
+  editRecord: SyncRecord | null;
+  onCancelEdit: () => void;
 }) {
   return (
     <div className="flex flex-col gap-6">
       {isEntryOpen && isPpl && (
         references ? (
           <ProvitasEntry
+            key={editRecord?.id ?? "new"}
             kecamatan={references.kecamatan}
             desa={references.desa}
             lahan={references.lahan}
             musimTanam={references.musim_tanam}
+            editRecord={editRecord}
             onSave={onSave}
             isOnline={isOnline}
+            onCancelEdit={onCancelEdit}
           />
         ) : (
           <Card>
@@ -101,6 +110,7 @@ export function ProvitasSection({
               records={records}
               section="provitas"
               emptyLabel="Catatan provitas Anda akan tampil setelah dibuat."
+              onEdit={isPpl ? onEdit : undefined}
             />
           )}
         </CardContent>

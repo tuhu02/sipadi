@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Sprout } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { User } from "@/app/lib/auth";
 import NotificationInbox from "@/app/ui/notification-inbox";
 import { Button } from "@/components/ui/button";
@@ -80,21 +80,6 @@ export function DashboardSidebar({
             />
           ))}
         </nav>
-      </div>
-
-      <div className="mt-auto rounded-2xl border border-border/80 bg-muted/40 p-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-primary">
-            <Sprout className="size-4" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">SiPadi PWA</p>
-            <p className="text-[10px] text-muted-foreground">Versi 0.1.0</p>
-          </div>
-        </div>
-        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-          Pencatatan lapangan yang tangguh, siap mendukung alur kerja offline.
-        </p>
       </div>
     </aside>
   );

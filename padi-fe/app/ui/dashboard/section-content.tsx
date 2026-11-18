@@ -1,6 +1,6 @@
 import { References, SyncRecord, User } from "@/app/lib/auth";
 import { LocalLuasAreal, LocalProvitas } from "@/app/lib/offline-store";
-import AdminVerification from "@/app/ui/admin-verification";
+import { AdminManagementSection } from "./admin-management-section";
 import { LuasArealSection, ProvitasSection } from "./record-sections";
 import { SummarySection } from "./summary-section";
 import { TerritorySection } from "./territory-section";
@@ -24,6 +24,9 @@ export function DashboardSectionContent({
   onToggleAreaEntry,
   onSaveProvitas,
   onSaveLuasAreal,
+  onEditProvitas,
+  editingProvitas,
+  onCancelEditProvitas,
 }: {
   section: DashboardSection;
   user: User;
@@ -42,12 +45,13 @@ export function DashboardSectionContent({
   onToggleAreaEntry: () => void;
   onSaveProvitas: (record: LocalProvitas) => Promise<void>;
   onSaveLuasAreal: (record: LocalLuasAreal) => Promise<void>;
+  onEditProvitas: (record: SyncRecord) => void;
+  editingProvitas: SyncRecord | null;
+  onCancelEditProvitas: () => void;
 }) {
   const isPpl = user.role === "ppl";
 
   switch (section) {
-    case "verifikasi":
-      return user.role === "admin" ? <AdminVerification token={token} /> : null;
     case "ringkasan":
       return (
         <SummarySection
@@ -67,6 +71,10 @@ export function DashboardSectionContent({
       return (
         <TerritorySection references={references} isLoading={isLoading} />
       );
+    case "admin":
+      return user.role === "admin" ? (
+        <AdminManagementSection token={token} currentUserId={user.id} />
+      ) : null;
     case "provitas":
       return (
         <ProvitasSection
@@ -79,6 +87,9 @@ export function DashboardSectionContent({
           isOnline={online}
           onToggleEntry={onToggleProvitasEntry}
           onSave={onSaveProvitas}
+          onEdit={onEditProvitas}
+          editRecord={editingProvitas}
+          onCancelEdit={onCancelEditProvitas}
         />
       );
     case "luas_areal":

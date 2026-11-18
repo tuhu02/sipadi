@@ -37,13 +37,11 @@ export type ReferenceMusimTanam = {
 
 export type SyncRecord = {
   id: string;
-  status: "draft" | "submitted" | "verified" | "rejected";
   updated_at: string;
   created_at?: string | null;
   synced_at: string | null;
   deleted: boolean;
   sync_error?: string | null;
-  catatan_verifikasi?: string | null;
   tanggal_panen?: string;
   lahan_id?: string;
   musim_tanam_id?: string;
@@ -98,13 +96,13 @@ export type SyncResponse = {
   hasil: {
     provitas: {
       id: string;
-      status: "diterima" | "ditolak";
+      hasil_sync: "diterima" | "ditolak";
       alasan: string | null;
       versi_server?: SyncRecord;
     }[];
     luas_areal: {
       id: string;
-      status: "diterima" | "ditolak";
+      hasil_sync: "diterima" | "ditolak";
       alasan: string | null;
       versi_server?: SyncRecord;
     }[];
@@ -114,36 +112,6 @@ export type SyncResponse = {
     luas_areal: SyncRecord[];
   };
   server_time: string;
-};
-
-export type VerificationRecord = SyncRecord & {
-  ppl?: Pick<User, "id" | "nama" | "email">;
-  lahan?: {
-    nama_petani: string;
-    kode_sampel: string;
-    desa?: {
-      nama: string;
-      kecamatan?: {
-        nama: string;
-      };
-    };
-  };
-  desa?: {
-    nama: string;
-    kecamatan?: {
-      nama: string;
-    };
-  };
-  musim_tanam?: {
-    nama: string;
-  };
-};
-
-export type VerificationPage = {
-  data: VerificationRecord[];
-  current_page: number;
-  last_page: number;
-  total: number;
 };
 
 type LoginResponse = {
@@ -167,34 +135,6 @@ export async function getCurrentUser(token: string) {
 
 export async function getReferences(token: string) {
   return apiRequest<References>("referensi", { token });
-}
-
-export async function getPendingVerifications(
-  token: string,
-  type: "provitas" | "luas-areal",
-  page = 1,
-) {
-  return apiRequest<VerificationPage>(
-    `verifikasi/${type}?page=${page}`,
-    { token },
-  );
-}
-
-export async function reviewSubmission(
-  token: string,
-  type: "provitas" | "luas-areal",
-  id: string,
-  action: "setujui" | "tolak",
-  catatanVerifikasi?: string,
-) {
-  return apiRequest<VerificationRecord>(
-    `verifikasi/${type}/${id}/${action}`,
-    {
-      method: "POST",
-      token,
-      body: JSON.stringify({ catatan_verifikasi: catatanVerifikasi }),
-    },
-  );
 }
 
 export async function getNotifications(token: string) {

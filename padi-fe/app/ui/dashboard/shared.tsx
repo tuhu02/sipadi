@@ -1,20 +1,20 @@
 import {
-  AlertCircle,
   BarChart3,
   Check,
-  CheckCircle2,
-  Clock,
   Layers,
   LayoutGrid,
   LogOut,
   MapPin,
+  Pencil,
   RefreshCw,
+  Settings2,
   Sprout,
   Wifi,
   WifiOff,
 } from "lucide-react";
 import { ReferenceDesa, SyncRecord } from "@/app/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -42,8 +42,8 @@ export function Icon({
       return <LogOut className={className} />;
     case "leaf":
       return <Sprout className={className} />;
-    case "check":
-      return <CheckCircle2 className={className} />;
+    case "settings":
+      return <Settings2 className={className} />;
     default:
       return null;
   }
@@ -59,40 +59,6 @@ export function formatDate(value: string | null | undefined) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-
-export function StatusBadge({ status }: { status: SyncRecord["status"] }) {
-  switch (status) {
-    case "draft":
-      return (
-        <Badge variant="secondary" className="font-medium">
-          Draft
-        </Badge>
-      );
-    case "submitted":
-      return (
-        <Badge variant="warning" className="font-medium">
-          <Clock className="size-3" />
-          Menunggu verifikasi
-        </Badge>
-      );
-    case "verified":
-      return (
-        <Badge variant="success" className="font-medium">
-          <CheckCircle2 className="size-3" />
-          Terverifikasi
-        </Badge>
-      );
-    case "rejected":
-      return (
-        <Badge variant="destructive" className="font-medium">
-          <AlertCircle className="size-3" />
-          Perlu perbaikan
-        </Badge>
-      );
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
 }
 
 export function Brand() {
@@ -142,11 +108,13 @@ export function RecordList({
   section,
   emptyLabel,
   desa = [],
+  onEdit,
 }: {
   records: SyncRecord[];
   section: DashboardSection;
   emptyLabel: string;
   desa?: ReferenceDesa[];
+  onEdit?: (record: SyncRecord) => void;
 }) {
   if (records.length === 0) {
     return (
@@ -192,19 +160,25 @@ export function RecordList({
                 Sinkronisasi: {record.sync_error}
               </p>
             )}
-            {record.catatan_verifikasi && (
-              <div className="mt-1 rounded-lg border border-destructive/20 bg-destructive/5 px-2.5 py-1 text-xs text-destructive">
-                <span className="font-semibold">Catatan verifikasi:</span> {record.catatan_verifikasi}
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2.5 sm:shrink-0">
-            <StatusBadge status={record.status} />
             {record.synced_at && (
               <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
                 <Check className="size-3 text-emerald-600" />
                 Tersinkron
               </Badge>
+            )}
+            {onEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(record)}
+                className="gap-1.5"
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </Button>
             )}
           </div>
         </article>

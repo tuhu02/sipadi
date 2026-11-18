@@ -4,8 +4,7 @@ Backend API untuk sistem pencatatan padi. API ini dipakai oleh PWA React terpisa
 
 - input data provitas dan luas areal oleh PPL;
 - sinkronisasi data yang dibuat saat offline;
-- verifikasi data oleh admin;
-- rekapitulasi data terverifikasi per kecamatan;
+- rekapitulasi data per kecamatan;
 - pengelolaan master data.
 
 API hanya menyediakan respons JSON. Frontend tidak termasuk dalam repository ini.
@@ -24,9 +23,11 @@ API hanya menyediakan respons JSON. Frontend tidak termasuk dalam repository ini
 | Role | Akses |
 | --- | --- |
 | `ppl` | Login, melihat referensi sesuai penugasan, mengirim sinkronisasi data miliknya |
-| `admin` | Semua akses admin: verifikasi, rekap, dan CRUD master data |
+| `admin` | Melihat rekap dan mengelola akun serta CRUD master data |
 
 PPL hanya dapat mengirim data untuk desa atau lahan yang berada di kecamatan dengan penugasan aktif. Penugasan aktif berarti `tanggal_mulai <= hari ini` dan `tanggal_selesai` kosong atau `tanggal_selesai >= hari ini`.
+
+Admin dapat mengelola akun dan data master melalui menu `Kelola data` di frontend. Halaman `Wilayah & lahan` tetap menampilkan data referensi secara baca-saja.
 
 ## Instalasi
 
@@ -256,7 +257,6 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
       "berat_gabah_kg": 50,
       "kadar_air": 20,
       "catatan": "Panen petak utara",
-      "status": "submitted",
       "updated_at": "2026-05-01T10:00:00Z",
       "deleted": false
     }
@@ -271,7 +271,6 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
       "luas_panen_ha": 8.25,
       "luas_puso_ha": 0.25,
       "catatan": null,
-      "status": "draft",
       "updated_at": "2026-05-01T10:00:00Z",
       "deleted": false
     }
@@ -295,14 +294,11 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
 
 5. `luas_petak_m2` harus lebih besar dari nol.
 6. Nilai provitas di atas batas kewajaran ditolak.
-7. Client hanya boleh mengirim `draft` atau `submitted`.
-8. Status `verified`, `verified_by`, `verified_at`, dan `catatan_verifikasi` hanya dapat diubah admin.
-9. Record `verified` tidak dapat diubah oleh PPL.
-10. Jika record server lebih baru dari record client, versi server dikembalikan.
-11. Pengiriman ulang dengan `id` yang sama bersifat idempotent.
-12. Pelanggaran unique constraint dikembalikan sebagai alasan `duplikat`.
-13. `synced_at` diisi oleh server saat record diterima.
-14. `deleted=true` digunakan sebagai tombstone agar client dapat menghapus data lokal setelah sinkronisasi.
+7. Jika record server lebih baru dari record client, versi server dikembalikan.
+8. Pengiriman ulang dengan `id` yang sama bersifat idempotent.
+9. Pelanggaran unique constraint dikembalikan sebagai alasan `duplikat`.
+10. `synced_at` diisi oleh server saat record diterima.
+11. `deleted=true` digunakan sebagai tombstone agar client dapat menghapus data lokal setelah sinkronisasi.
 
 ### Response
 
@@ -312,14 +308,14 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
     "provitas": [
       {
         "id": "uuid",
-        "status": "diterima",
+        "hasil_sync": "diterima",
         "alasan": null
       }
     ],
     "luas_areal": [
       {
         "id": "uuid",
-        "status": "ditolak",
+        "hasil_sync": "ditolak",
         "alasan": "Desa berada di luar kecamatan penugasan."
       }
     ]
@@ -332,61 +328,7 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
 }
 ```
 
-`perubahan` berisi record milik PPL tersebut dengan `synced_at` lebih baru dari `last_sync`. Jika `last_sync=null`, perubahan dikembalikan dari seluruh data milik PPL. Data yang telah diverifikasi admin juga dikirim melalui bagian ini.
-
-## Verifikasi admin
-
-### Daftar provitas submitted
-
-```http
-GET /api/verifikasi/provitas
-```
-
-Filter query yang tersedia:
-
-```text
-kecamatan_id
-musim_tanam_id
-ppl_id
-```
-
-### Daftar luas areal submitted
-
-```http
-GET /api/verifikasi/luas-areal
-```
-
-Filter query yang tersedia:
-
-```text
-kecamatan_id
-tahun
-ppl_id
-```
-
-### Menyetujui data
-
-```http
-POST /api/verifikasi/provitas/{id}/setujui
-POST /api/verifikasi/luas-areal/{id}/setujui
-```
-
-### Menolak data
-
-```http
-POST /api/verifikasi/provitas/{id}/tolak
-POST /api/verifikasi/luas-areal/{id}/tolak
-```
-
-Penolakan wajib menyertakan catatan:
-
-```json
-{
-  "catatan_verifikasi": "Berat gabah perlu dikonfirmasi."
-}
-```
-
-Saat admin menyetujui atau menolak data, server mengisi `verified_by`, `verified_at`, dan `synced_at`. PPL menerima status terbaru pada sync berikutnya.
+`perubahan` berisi record milik PPL tersebut dengan `synced_at` lebih baru dari `last_sync`. Jika `last_sync=null`, perubahan dikembalikan dari seluruh data milik PPL.
 
 ## Rekap kecamatan
 
@@ -401,20 +343,17 @@ musim_tanam_id=uuid-musim-tanam
 tahun=2026
 ```
 
-Rekap hanya menghitung data dengan:
-
-- `status = verified`;
-- `deleted = false`.
+Rekap hanya menghitung data dengan `deleted = false`.
 
 Field response:
 
 | Field | Keterangan |
 | --- | --- |
-| `jumlah_sampel` | Jumlah record provitas terverifikasi |
+| `jumlah_sampel` | Jumlah record provitas |
 | `provitas_rata` | Rata-rata `provitas_kuha` |
 | `provitas_tertimbang` | `SUM(berat_gabah_kg) / SUM(luas_petak_m2) * 100` |
-| `luas_tanam_ha` | Total luas tanam terverifikasi |
-| `luas_panen_ha` | Total luas panen terverifikasi |
+| `luas_tanam_ha` | Total luas tanam |
+| `luas_panen_ha` | Total luas panen |
 | `produksi_ton` | `luas_panen_ha * provitas_rata / 10` |
 
 ## CRUD master data admin
@@ -497,7 +436,6 @@ curl -X POST http://localhost:8000/api/sync \
       "berat_gabah_kg": 50,
       "kadar_air": 20,
       "catatan": null,
-      "status": "submitted",
       "updated_at": "2026-05-01T10:00:00Z",
       "deleted": false
     }],
@@ -527,7 +465,7 @@ Test mencakup:
 - penolakan sync di luar wilayah;
 - idempotensi UUID client;
 - perhitungan ulang provitas di server;
-- perlindungan record terverifikasi;
+- penghapusan kolom verifikasi dari tabel laporan;
 - pembatasan akses route admin.
 
 ## CORS

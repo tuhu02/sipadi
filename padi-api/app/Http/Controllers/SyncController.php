@@ -48,36 +48,33 @@ class SyncController extends Controller
                 'musim_tanam_id' => ['required', 'uuid'], 'tanggal_panen' => ['required', 'date'],
                 'luas_petak_m2' => ['required', 'numeric', 'gt:0'], 'berat_gabah_kg' => ['required', 'numeric', 'gte:0'],
                 'kadar_air' => ['nullable', 'numeric'], 'catatan' => ['nullable', 'string'],
-                'status' => ['required', 'in:draft,submitted'], 'updated_at' => ['required', 'date'],
+                'updated_at' => ['required', 'date'],
                 'deleted' => ['boolean'],
             ])->validate();
             if (! $this->wilayah->lahanBolehDiakses($user, $validated['lahan_id'])) {
-                return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Lahan berada di luar kecamatan penugasan.'];
+                return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'Lahan berada di luar kecamatan penugasan.'];
             }
             $existing = Provitas::find($id);
             if ($existing && $existing->ppl_id !== $user->id) {
-                return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Data dimiliki PPL lain.'];
-            }
-            if ($existing && $existing->status === 'verified') {
-                return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Data terverifikasi tidak dapat diubah.', 'versi_server' => $existing];
+                return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'Data dimiliki PPL lain.'];
             }
             if ($existing && $existing->updated_at && Carbon::parse($existing->updated_at)->gt(Carbon::parse($validated['updated_at']))) {
-                return ['id' => $id, 'status' => 'diterima', 'alasan' => null, 'versi_server' => $existing];
+                return ['id' => $id, 'hasil_sync' => 'diterima', 'alasan' => null, 'versi_server' => $existing];
             }
             $values = collect($validated)->except('id')->all();
             $values['ppl_id'] = $user->id;
             $values['provitas_kuha'] = round(((float) $values['berat_gabah_kg'] / (float) $values['luas_petak_m2']) * 100, 2);
             if ($values['provitas_kuha'] > 1000) {
-                return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Nilai provitas tidak masuk akal.'];
+                return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'Nilai provitas tidak masuk akal.'];
             }
             $values['deleted'] = (bool) ($values['deleted'] ?? false);
             $values['synced_at'] = now();
             DB::transaction(fn () => Provitas::updateOrCreate(['id' => $id], $values));
-            return ['id' => $id, 'status' => 'diterima', 'alasan' => null];
+            return ['id' => $id, 'hasil_sync' => 'diterima', 'alasan' => null];
         } catch (QueryException $e) {
-            return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'duplikat'];
+            return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'duplikat'];
         } catch (Throwable $e) {
-            return ['id' => $id, 'status' => 'ditolak', 'alasan' => $e->getMessage()];
+            return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => $e->getMessage()];
         }
     }
 
@@ -89,26 +86,27 @@ class SyncController extends Controller
                 'id' => ['required', 'uuid'], 'desa_id' => ['required', 'uuid'], 'tahun' => ['required', 'integer', 'between:2000,2100'],
                 'bulan' => ['required', 'integer', 'between:1,12'], 'luas_tanam_ha' => ['required', 'numeric', 'gte:0', 'max:99999999.99'],
                 'luas_panen_ha' => ['required', 'numeric', 'gte:0', 'max:99999999.99'], 'luas_puso_ha' => ['nullable', 'numeric', 'gte:0', 'max:99999999.99'],
-                'catatan' => ['nullable', 'string'], 'status' => ['required', 'in:draft,submitted'],
+                'catatan' => ['nullable', 'string'],
                 'updated_at' => ['required', 'date'], 'deleted' => ['boolean'],
             ])->validate();
             if (! $this->wilayah->desaBolehDiakses($user, $validated['desa_id'])) {
-                return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Desa berada di luar kecamatan penugasan.'];
+                return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'Desa berada di luar kecamatan penugasan.'];
             }
             $existing = LuasAreal::find($id);
-            if ($existing && $existing->ppl_id !== $user->id) return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Data dimiliki PPL lain.'];
-            if ($existing && $existing->status === 'verified') return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'Data terverifikasi tidak dapat diubah.', 'versi_server' => $existing];
+            if ($existing && $existing->ppl_id !== $user->id) return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'Data dimiliki PPL lain.'];
             if ($existing && $existing->updated_at && Carbon::parse($existing->updated_at)->gt(Carbon::parse($validated['updated_at']))) {
-                return ['id' => $id, 'status' => 'diterima', 'alasan' => null, 'versi_server' => $existing];
+                return ['id' => $id, 'hasil_sync' => 'diterima', 'alasan' => null, 'versi_server' => $existing];
             }
             $values = collect($validated)->except('id')->all();
-            $values['ppl_id'] = $user->id; $values['deleted'] = (bool) ($values['deleted'] ?? false); $values['synced_at'] = now();
+            $values['ppl_id'] = $user->id;
+            $values['deleted'] = (bool) ($values['deleted'] ?? false);
+            $values['synced_at'] = now();
             DB::transaction(fn () => LuasAreal::updateOrCreate(['id' => $id], $values));
-            return ['id' => $id, 'status' => 'diterima', 'alasan' => null];
+            return ['id' => $id, 'hasil_sync' => 'diterima', 'alasan' => null];
         } catch (QueryException $e) {
-            return ['id' => $id, 'status' => 'ditolak', 'alasan' => 'duplikat'];
+            return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'duplikat'];
         } catch (Throwable $e) {
-            return ['id' => $id, 'status' => 'ditolak', 'alasan' => $e->getMessage()];
+            return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => $e->getMessage()];
         }
     }
 }

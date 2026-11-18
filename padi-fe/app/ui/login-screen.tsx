@@ -179,20 +179,6 @@ export default function LoginScreen() {
             Aplikasi pencatatan produktivitas dan luas areal padi terpadu. Dilengkapi kemampuan penyimpanan offline untuk wilayah dengan keterbatasan jaringan.
           </p>
 
-          <div className="mt-8 grid grid-cols-2 gap-4 max-w-md pt-2">
-            <div className="rounded-xl border border-border bg-card/60 p-4 shadow-xs backdrop-blur-xs">
-              <p className="text-sm font-bold text-foreground">Offline-first</p>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Tetap catat data saat di sawah tanpa koneksi internet.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-card/60 p-4 shadow-xs backdrop-blur-xs">
-              <p className="text-sm font-bold text-foreground">Sinkron Otomatis</p>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Data terkirim otomatis saat perangkat kembali online.
-              </p>
-            </div>
-          </div>
         </section>
 
         <section className="mx-auto w-full max-w-md">

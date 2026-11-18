@@ -5,7 +5,7 @@ export type DashboardSection =
   | "wilayah"
   | "provitas"
   | "luas_areal"
-  | "verifikasi";
+  | "admin";
 
 export type DashboardIconName =
   | "grid"
@@ -15,7 +15,7 @@ export type DashboardIconName =
   | "refresh"
   | "logout"
   | "leaf"
-  | "check";
+  | "settings";
 
 export type DashboardNavigationItem = {
   id: DashboardSection;
@@ -30,7 +30,7 @@ export const navigation: DashboardNavigationItem[] = [
   { id: "wilayah", label: "Wilayah & lahan", icon: "map" },
   { id: "provitas", label: "Data provitas", icon: "chart", pplOnly: true },
   { id: "luas_areal", label: "Luas areal", icon: "field", pplOnly: true },
-  { id: "verifikasi", label: "Verifikasi", icon: "check", adminOnly: true },
+  { id: "admin", label: "Kelola data", icon: "settings", adminOnly: true },
 ];
 
 export function recordTitle(record: SyncRecord, section: DashboardSection) {

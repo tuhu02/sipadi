@@ -3,7 +3,6 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ReferensiController;
 use App\Http\Controllers\SyncController;
-use App\Http\Controllers\VerifikasiController;
 use App\Http\Controllers\RekapController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\KecamatanController;
@@ -24,12 +23,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('/sync', SyncController::class)->middleware('role:ppl');
     Route::middleware('role:admin')->group(function () {
-        Route::get('/verifikasi/provitas', [VerifikasiController::class, 'provitas']);
-        Route::get('/verifikasi/luas-areal', [VerifikasiController::class, 'luasAreal']);
-        Route::post('/verifikasi/{type}/{id}/{action}', function (\Illuminate\Http\Request $request, $type, $id, $action) {
-            abort_unless(in_array($type, ['provitas', 'luas-areal'], true) && in_array($action, ['setujui', 'tolak'], true), 404);
-            return app(VerifikasiController::class)->action($request, $type === 'luas-areal' ? 'luas_areal' : $type, $id, $action === 'setujui' ? 'verified' : 'rejected');
-        });
         Route::get('/rekap/kecamatan', [RekapController::class, 'kecamatan']);
         Route::apiResource('users', UserController::class);
         Route::apiResource('kecamatan', KecamatanController::class);

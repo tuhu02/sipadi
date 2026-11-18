@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   MapPin,
   Save,
-  Send,
   Sparkles,
   Sprout,
 } from "lucide-react";
@@ -16,6 +15,7 @@ import {
   ReferenceKecamatan,
   ReferenceLahan,
   ReferenceMusimTanam,
+  SyncRecord,
 } from "@/app/lib/auth";
 import { LocalProvitas } from "@/app/lib/offline-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,9 +40,9 @@ type ProvitasEntryProps = {
   musimTanam: ReferenceMusimTanam[];
   onSave: (record: LocalProvitas) => Promise<void>;
   isOnline: boolean;
+  editRecord: SyncRecord | null;
+  onCancelEdit: () => void;
 };
-
-type SaveStatus = "draft" | "submitted";
 
 function numericValue(value: string) {
   if (value.trim() === "") return null;
@@ -57,16 +57,35 @@ export default function ProvitasEntry({
   musimTanam,
   onSave,
   isOnline,
+  editRecord,
+  onCancelEdit,
 }: ProvitasEntryProps) {
-  const [kecamatanId, setKecamatanId] = useState("");
-  const [desaId, setDesaId] = useState("");
-  const [lahanId, setLahanId] = useState("");
-  const [musimTanamId, setMusimTanamId] = useState("");
-  const [tanggalPanen, setTanggalPanen] = useState("");
-  const [luasPetak, setLuasPetak] = useState("");
-  const [beratGabah, setBeratGabah] = useState("");
-  const [kadarAir, setKadarAir] = useState("");
-  const [catatan, setCatatan] = useState("");
+  const initialLahanId = editRecord?.lahan_id ?? "";
+  const initialDesaId =
+    lahan.find((item) => item.id === initialLahanId)?.desa_id ?? "";
+  const initialKecamatanId =
+    desa.find((item) => item.id === initialDesaId)?.kecamatan_id ?? "";
+  const [kecamatanId, setKecamatanId] = useState(initialKecamatanId);
+  const [desaId, setDesaId] = useState(initialDesaId);
+  const [lahanId, setLahanId] = useState(initialLahanId);
+  const [musimTanamId, setMusimTanamId] = useState(
+    editRecord?.musim_tanam_id ?? "",
+  );
+  const [tanggalPanen, setTanggalPanen] = useState(
+    editRecord?.tanggal_panen?.slice(0, 10) ?? "",
+  );
+  const [luasPetak, setLuasPetak] = useState(
+    editRecord?.luas_petak_m2 == null ? "" : String(editRecord.luas_petak_m2),
+  );
+  const [beratGabah, setBeratGabah] = useState(
+    editRecord?.berat_gabah_kg == null
+      ? ""
+      : String(editRecord.berat_gabah_kg),
+  );
+  const [kadarAir, setKadarAir] = useState(
+    editRecord?.kadar_air == null ? "" : String(editRecord.kadar_air),
+  );
+  const [catatan, setCatatan] = useState(editRecord?.catatan ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -86,7 +105,7 @@ export default function ProvitasEntry({
       ? (beratGabahNumber / luasPetakNumber) * 100
       : null;
 
-  async function saveRecord(status: SaveStatus, form: HTMLFormElement) {
+  async function saveRecord(form: HTMLFormElement) {
     if (!form.reportValidity()) return;
     setError("");
     setSuccess("");
@@ -129,7 +148,7 @@ export default function ProvitasEntry({
 
     try {
       const record: LocalProvitas = {
-        id: crypto.randomUUID(),
+        id: editRecord?.id ?? crypto.randomUUID(),
         lahan_id: lahanId,
         musim_tanam_id: musimTanamId,
         tanggal_panen: tanggalPanen,
@@ -138,7 +157,6 @@ export default function ProvitasEntry({
         kadar_air: kadarAir === "" ? null : numericValue(kadarAir),
         catatan: catatan.trim() || null,
         provitas_kuha: Number((provitasPreview ?? 0).toFixed(2)),
-        status,
         updated_at: new Date().toISOString(),
         synced_at: null,
         deleted: false,
@@ -148,11 +166,9 @@ export default function ProvitasEntry({
       await onSave(record);
 
       setSuccess(
-        status === "draft"
-          ? "Catatan provitas tersimpan sebagai draft di perangkat ini."
-          : isOnline
-            ? "Catatan provitas tersimpan dan akan segera diverifikasi oleh admin."
-            : "Catatan provitas tersimpan di perangkat offline. Akan otomatis disinkronkan saat online."
+        isOnline
+          ? "Catatan provitas berhasil disimpan."
+          : "Catatan provitas tersimpan offline. Akan disinkronkan saat online."
       );
 
       // Reset form
@@ -185,7 +201,9 @@ export default function ProvitasEntry({
               <Sprout className="size-5" />
             </div>
             <div>
-              <CardTitle className="text-xl font-bold">Catat Data Provitas Baru</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                {editRecord ? "Edit Data Provitas" : "Catat Data Provitas Baru"}
+              </CardTitle>
               <CardDescription>
                 Input data ubinan panen lapangan untuk perhitungan produktivitas padi.
               </CardDescription>
@@ -219,7 +237,7 @@ export default function ProvitasEntry({
           id="provitas-form"
           onSubmit={(e) => {
             e.preventDefault();
-            void saveRecord("submitted", e.currentTarget);
+            void saveRecord(e.currentTarget);
           }}
           className="space-y-6"
         >
@@ -438,33 +456,30 @@ export default function ProvitasEntry({
       <CardFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-border pt-6">
         <p className="text-xs text-muted-foreground">
           {isOnline
-            ? "Data yang diajukan akan masuk ke antrean verifikasi admin."
+            ? "Data akan langsung tersimpan saat dikirim."
             : "Data yang disimpan saat offline tersimpan aman di database lokal browser."}
         </p>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isSaving}
-            onClick={(e) => {
-              const form = (e.currentTarget.closest(".max-w-4xl")?.querySelector("#provitas-form") as HTMLFormElement) ?? null;
-              if (form) void saveRecord("draft", form);
-            }}
-            className="flex-1 sm:flex-none gap-2"
-          >
-            <Save className="size-4" />
-            <span>Simpan Draft</span>
-          </Button>
-
+          {editRecord && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={onCancelEdit}
+              className="flex-1 sm:flex-none"
+            >
+              Batal
+            </Button>
+          )}
           <Button
             type="submit"
             form="provitas-form"
             disabled={isSaving}
             className="flex-1 sm:flex-none gap-2 font-semibold shadow-xs"
           >
-            <Send className="size-4" />
-            <span>{isSaving ? "Menyimpan..." : "Kirim Pengajuan"}</span>
+            <Save className="size-4" />
+            <span>{isSaving ? "Menyimpan..." : "Simpan Provitas"}</span>
           </Button>
         </div>
       </CardFooter>

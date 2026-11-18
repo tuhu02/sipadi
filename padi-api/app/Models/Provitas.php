@@ -19,7 +19,6 @@ class Provitas extends Model
         return [
             'tanggal_panen' => 'date',
             'deleted' => 'boolean',
-            'verified_at' => 'datetime',
             'updated_at' => 'datetime',
             'created_at' => 'datetime',
             'synced_at' => 'datetime',
@@ -41,8 +40,4 @@ class Provitas extends Model
         return $this->belongsTo(User::class, 'ppl_id');
     }
 
-    public function verifikator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'verified_by');
-    }
 }

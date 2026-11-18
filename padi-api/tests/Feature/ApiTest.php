@@ -12,6 +12,7 @@ use App\Models\Provitas;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ApiTest extends TestCase
@@ -39,6 +40,16 @@ class ApiTest extends TestCase
         $this->postJson('/api/login', ['email' => 'ppl@test.local', 'password' => 'wrong'])->assertStatus(422)->assertJson(['message' => 'Email atau password salah']);
     }
 
+    public function test_report_tables_do_not_have_verification_fields(): void
+    {
+        foreach (['provitas', 'luas_areal'] as $table) {
+            $this->assertFalse(Schema::hasColumn($table, 'status'));
+            $this->assertFalse(Schema::hasColumn($table, 'verified_by'));
+            $this->assertFalse(Schema::hasColumn($table, 'verified_at'));
+            $this->assertFalse(Schema::hasColumn($table, 'catatan_verifikasi'));
+        }
+    }
+
     public function test_reference_is_limited_to_assigned_area(): void
     {
         $outside = Kecamatan::create(['kode' => 'K2', 'nama' => 'Kecamatan 2']);
@@ -55,12 +66,12 @@ class ApiTest extends TestCase
     {
         $id = fake()->uuid();
         $payload = ['id' => $id, 'lahan_id' => $this->lahan->id, 'musim_tanam_id' => $this->musim->id, 'tanggal_panen' => '2026-05-01',
-            'luas_petak_m2' => 100, 'berat_gabah_kg' => 50, 'kadar_air' => 20, 'status' => 'submitted',
+            'luas_petak_m2' => 100, 'berat_gabah_kg' => 50, 'kadar_air' => 20,
             'updated_at' => '2026-05-01T10:00:00Z', 'deleted' => false, 'provitas_kuha' => 9999];
         $token = $this->ppl->createToken('test')->plainTextToken;
         $this->withToken($token)->postJson('/api/sync', ['provitas' => [$payload]])->assertOk();
         $this->withToken($token)->postJson('/api/sync', ['provitas' => [$payload]])->assertOk();
-        $this->assertDatabaseCount('provitas', 1)->assertDatabaseHas('provitas', ['id' => $id, 'provitas_kuha' => 50, 'status' => 'submitted']);
+        $this->assertDatabaseCount('provitas', 1)->assertDatabaseHas('provitas', ['id' => $id, 'provitas_kuha' => 50]);
     }
 
     public function test_sync_accepts_luas_areal_report_idempotently(): void
@@ -75,7 +86,6 @@ class ApiTest extends TestCase
             'luas_panen_ha' => 10.25,
             'luas_puso_ha' => 0.5,
             'catatan' => 'Rekap bulan Mei',
-            'status' => 'submitted',
             'updated_at' => '2026-05-31T10:00:00Z',
             'deleted' => false,
         ];
@@ -83,10 +93,10 @@ class ApiTest extends TestCase
 
         $this->withToken($token)->postJson('/api/sync', ['luas_areal' => [$payload]])
             ->assertOk()
-            ->assertJsonPath('hasil.luas_areal.0.status', 'diterima');
+            ->assertJsonPath('hasil.luas_areal.0.hasil_sync', 'diterima');
         $this->withToken($token)->postJson('/api/sync', ['luas_areal' => [$payload]])
             ->assertOk()
-            ->assertJsonPath('hasil.luas_areal.0.status', 'diterima');
+            ->assertJsonPath('hasil.luas_areal.0.hasil_sync', 'diterima');
 
         $this->assertDatabaseCount('luas_areal', 1)
             ->assertDatabaseHas('luas_areal', [
@@ -94,11 +104,10 @@ class ApiTest extends TestCase
                 'ppl_id' => $this->ppl->id,
                 'luas_tanam_ha' => 12.5,
                 'luas_panen_ha' => 10.25,
-                'status' => 'submitted',
             ]);
     }
 
-    public function test_verified_luas_areal_cannot_be_changed_by_ppl(): void
+    public function test_ppl_can_edit_luas_areal(): void
     {
         $record = LuasAreal::create([
             'id' => fake()->uuid(),
@@ -109,7 +118,6 @@ class ApiTest extends TestCase
             'luas_tanam_ha' => 12.5,
             'luas_panen_ha' => 10,
             'luas_puso_ha' => 0.5,
-            'status' => 'verified',
             'updated_at' => now(),
         ]);
         $token = $this->ppl->createToken('test')->plainTextToken;
@@ -122,14 +130,12 @@ class ApiTest extends TestCase
             'luas_tanam_ha' => 20,
             'luas_panen_ha' => 15,
             'luas_puso_ha' => 1,
-            'status' => 'submitted',
             'updated_at' => now()->addMinute()->toISOString(),
-        ]]])->assertJsonPath('hasil.luas_areal.0.status', 'ditolak');
+        ]]])->assertJsonPath('hasil.luas_areal.0.hasil_sync', 'diterima');
 
         $this->assertDatabaseHas('luas_areal', [
             'id' => $record->id,
-            'luas_tanam_ha' => 12.5,
-            'status' => 'verified',
+            'luas_tanam_ha' => 20,
         ]);
     }
 
@@ -139,79 +145,20 @@ class ApiTest extends TestCase
         $this->withToken($token)->getJson('/api/rekap/kecamatan')->assertForbidden();
     }
 
-    public function test_admin_can_review_pending_submissions(): void
-    {
-        $admin = User::create([
-            'nama' => 'Admin',
-            'email' => 'admin@test.local',
-            'password' => Hash::make('password'),
-            'role' => 'admin',
-        ]);
-        $provitas = Provitas::create([
-            'id' => fake()->uuid(),
-            'lahan_id' => $this->lahan->id,
-            'musim_tanam_id' => $this->musim->id,
-            'ppl_id' => $this->ppl->id,
-            'tanggal_panen' => '2026-05-01',
-            'luas_petak_m2' => 100,
-            'berat_gabah_kg' => 50,
-            'provitas_kuha' => 50,
-            'status' => 'submitted',
-            'updated_at' => now(),
-        ]);
-        $area = LuasAreal::create([
-            'id' => fake()->uuid(),
-            'desa_id' => $this->lahan->desa_id,
-            'ppl_id' => $this->ppl->id,
-            'tahun' => 2026,
-            'bulan' => 5,
-            'luas_tanam_ha' => 12.5,
-            'luas_panen_ha' => 10,
-            'luas_puso_ha' => 0.5,
-            'status' => 'submitted',
-            'updated_at' => now(),
-        ]);
-        $token = $admin->createToken('test')->plainTextToken;
-
-        $this->withToken($token)->getJson('/api/verifikasi/provitas')
-            ->assertOk()
-            ->assertJsonPath('data.0.ppl.nama', 'PPL')
-            ->assertJsonPath('data.0.lahan.desa.nama', 'Desa 1');
-        $this->withToken($token)->getJson('/api/verifikasi/luas-areal')
-            ->assertOk()
-            ->assertJsonPath('data.0.desa.nama', 'Desa 1')
-            ->assertJsonPath('data.0.ppl.nama', 'PPL');
-
-        $this->withToken($token)->postJson("/api/verifikasi/provitas/{$provitas->id}/setujui")
-            ->assertOk()
-            ->assertJsonPath('status', 'verified');
-        $this->withToken($token)->postJson("/api/verifikasi/luas-areal/{$area->id}/tolak", [
-            'catatan_verifikasi' => 'Periksa kembali luas panen.',
-        ])->assertOk()
-            ->assertJsonPath('status', 'rejected')
-            ->assertJsonPath('catatan_verifikasi', 'Periksa kembali luas panen.');
-
-        $this->assertDatabaseHas('provitas', [
-            'id' => $provitas->id,
-            'verified_by' => $admin->id,
-            'status' => 'verified',
-        ]);
-        $this->assertDatabaseHas('luas_areal', [
-            'id' => $area->id,
-            'verified_by' => $admin->id,
-            'status' => 'rejected',
-        ]);
-    }
-
-    public function test_verified_record_cannot_be_changed_by_ppl(): void
+    public function test_ppl_can_edit_provitas(): void
     {
         $record = Provitas::create(['id' => fake()->uuid(), 'lahan_id' => $this->lahan->id, 'musim_tanam_id' => $this->musim->id,
             'ppl_id' => $this->ppl->id, 'tanggal_panen' => '2026-05-01', 'luas_petak_m2' => 100, 'berat_gabah_kg' => 50,
-            'provitas_kuha' => 50, 'status' => 'verified', 'updated_at' => now()]);
+            'provitas_kuha' => 50, 'updated_at' => now()]);
         $token = $this->ppl->createToken('test')->plainTextToken;
         $this->withToken($token)->postJson('/api/sync', ['provitas' => [['id' => $record->id, 'lahan_id' => $this->lahan->id,
             'musim_tanam_id' => $this->musim->id, 'tanggal_panen' => '2026-05-01', 'luas_petak_m2' => 100,
-            'berat_gabah_kg' => 60, 'status' => 'submitted', 'updated_at' => now()->addMinute()->toISOString()]]])
-            ->assertJsonPath('hasil.provitas.0.status', 'ditolak');
+            'berat_gabah_kg' => 60, 'updated_at' => now()->addMinute()->toISOString()]]])
+            ->assertJsonPath('hasil.provitas.0.hasil_sync', 'diterima');
+        $this->assertDatabaseHas('provitas', [
+            'id' => $record->id,
+            'berat_gabah_kg' => 60,
+            'provitas_kuha' => 60,
+        ]);
     }
 }
