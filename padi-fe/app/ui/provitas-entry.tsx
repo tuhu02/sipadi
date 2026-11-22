@@ -48,6 +48,11 @@ type ProvitasEntryProps = {
   onCancelEdit: () => void;
 };
 
+const maxProvitas = 1000;
+const maxMeasurement = 999999.99;
+
+type NumericField = "luasPetak" | "beratGabah" | "kadarAir";
+
 function numericValue(value: string) {
   if (value.trim() === "") return null;
   const parsed = Number(value);
@@ -95,6 +100,9 @@ export default function ProvitasEntry({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [touchedFields, setTouchedFields] = useState<
+    Record<NumericField, boolean>
+  >({ luasPetak: false, beratGabah: false, kadarAir: false });
   const formCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,12 +124,49 @@ export default function ProvitasEntry({
   );
   const luasPetakNumber = numericValue(luasPetak);
   const beratGabahNumber = numericValue(beratGabah);
+  const kadarAirNumber = numericValue(kadarAir);
   const provitasPreview =
     luasPetakNumber && beratGabahNumber !== null && luasPetakNumber > 0
       ? (beratGabahNumber / luasPetakNumber) * 100
       : null;
+  const provitasExceedsLimit =
+    provitasPreview !== null &&
+    Number(provitasPreview.toFixed(2)) > maxProvitas;
+  const numericFieldErrors: Record<NumericField, string | null> = {
+    luasPetak:
+      luasPetak.trim() === ""
+        ? "Luas petak wajib diisi."
+        : luasPetakNumber === null
+          ? "Masukkan luas petak berupa angka."
+          : luasPetakNumber <= 0
+            ? "Luas petak harus lebih besar dari 0 m²."
+            : luasPetakNumber > maxMeasurement
+              ? "Luas petak melebihi batas maksimum."
+              : null,
+    beratGabah:
+      beratGabah.trim() === ""
+        ? "Berat gabah wajib diisi."
+        : beratGabahNumber === null
+          ? "Masukkan berat gabah berupa angka."
+          : beratGabahNumber < 0
+            ? "Berat gabah tidak boleh negatif."
+            : beratGabahNumber > maxMeasurement
+              ? "Berat gabah melebihi batas maksimum."
+              : provitasExceedsLimit
+                ? "Hasil provitas melebihi batas maksimum 1.000 Ku/Ha."
+                : null,
+    kadarAir:
+      kadarAir.trim() === ""
+        ? null
+        : kadarAirNumber === null
+          ? "Masukkan kadar air berupa angka."
+          : kadarAirNumber < 0 || kadarAirNumber > 100
+            ? "Kadar air harus antara 0 dan 100 persen."
+            : null,
+  };
 
   async function saveRecord(form: HTMLFormElement) {
+    setTouchedFields({ luasPetak: true, beratGabah: true, kadarAir: true });
     if (!form.reportValidity()) return;
     setError("");
     setSuccess("");
@@ -142,12 +187,19 @@ export default function ProvitasEntry({
     }
 
     if (
-      luasPetakNumber > 999999.99 ||
+      luasPetakNumber > maxMeasurement ||
       beratGabahNumber < 0 ||
       beratGabahNumber > 999999.99
     ) {
       setError(
         "Luas petak atau berat gabah berada di luar batas yang didukung."
+      );
+      return;
+    }
+
+    if (provitasExceedsLimit) {
+      setError(
+        "Estimasi provitas melebihi batas maksimum 1.000 Ku/Ha. Periksa kembali luas petak dan berat gabah.",
       );
       return;
     }
@@ -184,7 +236,7 @@ export default function ProvitasEntry({
         tanggal_panen: tanggalPanen,
         luas_petak_m2: luasPetakNumber,
         berat_gabah_kg: beratGabahNumber,
-        kadar_air: kadarAir === "" ? null : numericValue(kadarAir),
+        kadar_air: kadarAir === "" ? null : kadarAirNumber,
         catatan: catatan.trim() || null,
         provitas_kuha: Number((provitasPreview ?? 0).toFixed(2)),
         updated_at: new Date().toISOString(),
@@ -436,15 +488,24 @@ export default function ProvitasEntry({
                 <Label htmlFor="luas_petak">Luas Petak (m²)</Label>
                 <Input
                   id="luas_petak"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="999999.99"
+                  type="text"
+                  inputMode="decimal"
                   required
+                  aria-invalid={touchedFields.luasPetak && !!numericFieldErrors.luasPetak}
+                  aria-describedby={touchedFields.luasPetak && numericFieldErrors.luasPetak ? "luas-petak-error" : undefined}
                   placeholder="Contoh: 6.25"
                   value={luasPetak}
-                  onChange={(e) => setLuasPetak(e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    setLuasPetak(e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, luasPetak: true }));
+                  }}
                 />
+                {touchedFields.luasPetak && numericFieldErrors.luasPetak && (
+                  <p id="luas-petak-error" className="text-sm text-destructive">
+                    {numericFieldErrors.luasPetak}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Nilai awal 6,25 m²; sesuaikan dengan ukuran petak.
                 </p>
@@ -454,15 +515,24 @@ export default function ProvitasEntry({
                 <Label htmlFor="berat_gabah">Berat Gabah Ubinan (kg)</Label>
                 <Input
                   id="berat_gabah"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="999999.99"
+                  type="text"
+                  inputMode="decimal"
                   required
+                  aria-invalid={touchedFields.beratGabah && !!numericFieldErrors.beratGabah}
+                  aria-describedby={touchedFields.beratGabah && numericFieldErrors.beratGabah ? "berat-gabah-error" : undefined}
                   placeholder="Contoh: 4.8"
                   value={beratGabah}
-                  onChange={(e) => setBeratGabah(e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    setBeratGabah(e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, beratGabah: true }));
+                  }}
                 />
+                {touchedFields.beratGabah && numericFieldErrors.beratGabah && (
+                  <p id="berat-gabah-error" className="text-sm text-destructive">
+                    {numericFieldErrors.beratGabah}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -472,14 +542,23 @@ export default function ProvitasEntry({
                 </Label>
                 <Input
                   id="kadar_air"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
+                  type="text"
+                  inputMode="decimal"
+                  aria-invalid={touchedFields.kadarAir && !!numericFieldErrors.kadarAir}
+                  aria-describedby={touchedFields.kadarAir && numericFieldErrors.kadarAir ? "kadar-air-error" : undefined}
                   placeholder="Contoh: 14"
                   value={kadarAir}
-                  onChange={(e) => setKadarAir(e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    setKadarAir(e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, kadarAir: true }));
+                  }}
                 />
+                {touchedFields.kadarAir && numericFieldErrors.kadarAir && (
+                  <p id="kadar-air-error" className="text-sm text-destructive">
+                    {numericFieldErrors.kadarAir}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -510,6 +589,15 @@ export default function ProvitasEntry({
                   )}
                 </div>
               </div>
+              {provitasExceedsLimit && (
+                <p
+                  aria-live="polite"
+                  className="mt-3 text-sm font-medium text-destructive"
+                >
+                  Estimasi provitas melebihi batas maksimum 1.000 Ku/Ha.
+                  Periksa kembali luas petak dan berat gabah.
+                </p>
+              )}
             </div>
           </div>
 

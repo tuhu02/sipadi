@@ -50,11 +50,27 @@ const monthNames = [
   "November",
   "Desember",
 ];
+const maxArea = 99999999.99;
+
+type AreaField = "luasTanam" | "luasPanen" | "luasPuso";
 
 function numberOrNull(value: string) {
   if (value.trim() === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function areaFieldError(value: string, required: boolean): string | null {
+  if (value.trim() === "") {
+    return required ? "Kolom ini wajib diisi." : null;
+  }
+
+  const number = numberOrNull(value);
+  if (number === null) return "Masukkan nilai berupa angka.";
+  if (number < 0) return "Luas areal tidak boleh bernilai negatif.";
+  if (number > maxArea) return "Nilai melebihi batas maksimum.";
+
+  return null;
 }
 
 export default function LuasArealEntry({
@@ -82,6 +98,9 @@ export default function LuasArealEntry({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [touchedFields, setTouchedFields] = useState<
+    Record<AreaField, boolean>
+  >({ luasTanam: false, luasPanen: false, luasPuso: false });
 
   const existingRecord = useMemo(
     () =>
@@ -106,6 +125,11 @@ export default function LuasArealEntry({
   };
   const formValues =
     editedForm?.key === formKey ? editedForm.values : initialValues;
+  const numericFieldErrors: Record<AreaField, string | null> = {
+    luasTanam: areaFieldError(formValues.luasTanam, true),
+    luasPanen: areaFieldError(formValues.luasPanen, true),
+    luasPuso: areaFieldError(formValues.luasPuso, false),
+  };
 
   function updateForm<K extends keyof typeof initialValues>(
     field: K,
@@ -122,6 +146,7 @@ export default function LuasArealEntry({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setTouchedFields({ luasTanam: true, luasPanen: true, luasPuso: true });
     setError("");
     setSuccess("");
 
@@ -139,8 +164,8 @@ export default function LuasArealEntry({
       return;
     }
 
-    if (luasTanam < 0 || luasPanen < 0 || (luasPuso !== null && luasPuso < 0)) {
-      setError("Luas areal tidak boleh bernilai negatif.");
+    if (Object.values(numericFieldErrors).some(Boolean)) {
+      setError("Periksa kembali nilai luas areal yang dimasukkan.");
       return;
     }
 
@@ -318,28 +343,48 @@ export default function LuasArealEntry({
                 <Label htmlFor="luas_tanam">Luas Tanam (Ha)</Label>
                 <Input
                   id="luas_tanam"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   required
+                  aria-invalid={touchedFields.luasTanam && !!numericFieldErrors.luasTanam}
+                  aria-describedby={touchedFields.luasTanam && numericFieldErrors.luasTanam ? "luas-tanam-error" : undefined}
                   placeholder="0.00"
                   value={formValues.luasTanam}
-                  onChange={(e) => updateForm("luasTanam", e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    updateForm("luasTanam", e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, luasTanam: true }));
+                  }}
                 />
+                {touchedFields.luasTanam && numericFieldErrors.luasTanam && (
+                  <p id="luas-tanam-error" className="text-sm text-destructive">
+                    {numericFieldErrors.luasTanam}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="luas_panen">Luas Panen (Ha)</Label>
                 <Input
                   id="luas_panen"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   required
+                  aria-invalid={touchedFields.luasPanen && !!numericFieldErrors.luasPanen}
+                  aria-describedby={touchedFields.luasPanen && numericFieldErrors.luasPanen ? "luas-panen-error" : undefined}
                   placeholder="0.00"
                   value={formValues.luasPanen}
-                  onChange={(e) => updateForm("luasPanen", e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    updateForm("luasPanen", e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, luasPanen: true }));
+                  }}
                 />
+                {touchedFields.luasPanen && numericFieldErrors.luasPanen && (
+                  <p id="luas-panen-error" className="text-sm text-destructive">
+                    {numericFieldErrors.luasPanen}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -349,13 +394,23 @@ export default function LuasArealEntry({
                 </Label>
                 <Input
                   id="luas_puso"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  aria-invalid={touchedFields.luasPuso && !!numericFieldErrors.luasPuso}
+                  aria-describedby={touchedFields.luasPuso && numericFieldErrors.luasPuso ? "luas-puso-error" : undefined}
                   placeholder="0.00"
                   value={formValues.luasPuso}
-                  onChange={(e) => updateForm("luasPuso", e.target.value)}
+                  onChange={(e) => {
+                    setError("");
+                    updateForm("luasPuso", e.target.value);
+                    setTouchedFields((fields) => ({ ...fields, luasPuso: true }));
+                  }}
                 />
+                {touchedFields.luasPuso && numericFieldErrors.luasPuso && (
+                  <p id="luas-puso-error" className="text-sm text-destructive">
+                    {numericFieldErrors.luasPuso}
+                  </p>
+                )}
               </div>
             </div>
           </div>
