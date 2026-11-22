@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import { AlertCircle, ArrowRight, Info, Loader2, Sprout } from "lucide-react";
 import { ApiError } from "@/app/lib/api";
 import {
@@ -172,13 +173,16 @@ export default function LoginScreen() {
             </div>
           </div>
 
-          <h1 className="mt-8 max-w-lg text-4xl font-extrabold leading-[1.15] tracking-tight text-foreground sm:text-5xl">
-            Data padi tersusun, pekerjaan lapangan lebih mudah.
-          </h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground">
-            Aplikasi pencatatan produktivitas dan luas areal padi terpadu. Dilengkapi kemampuan penyimpanan offline untuk wilayah dengan keterbatasan jaringan.
-          </p>
-
+          <div className="relative mt-8 aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-lg">
+            <Image
+              src="/login-hero.jpeg"
+              alt="Ilustrasi pertanian padi SiPadi"
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
+          </div>
         </section>
 
         <section className="mx-auto w-full max-w-md">
@@ -188,7 +192,7 @@ export default function LoginScreen() {
                 Masuk ke akun
               </CardTitle>
               <CardDescription>
-                Gunakan kredensial akun PPL atau Administrator yang telah terdaftar.
+                Silakan masuk menggunakan akun yang telah terdaftar pada sistem.
               </CardDescription>
             </CardHeader>
             <CardContent>

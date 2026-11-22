@@ -20,6 +20,9 @@ type NotificationInboxProps = {
   token: string;
   userId: string;
   onNewNotification: () => Promise<void>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 };
 
 function formatNotificationDate(value: string) {
@@ -60,12 +63,27 @@ export default function NotificationInbox({
   token,
   userId,
   onNewNotification,
+  open,
+  onOpenChange,
+  hideTrigger = false,
 }: NotificationInboxProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open ?? internalOpen;
   const notificationsRef = useRef<AppNotification[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const changeOpen = useCallback(
+    (nextOpen: boolean) => {
+      if (onOpenChange) {
+        onOpenChange(nextOpen);
+      } else {
+        setInternalOpen(nextOpen);
+      }
+    },
+    [onOpenChange],
+  );
 
   const loadNotifications = useCallback(async () => {
     const response = await getNotifications(token);
@@ -104,7 +122,7 @@ export default function NotificationInbox({
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        changeOpen(false);
       }
     }
 
@@ -114,7 +132,7 @@ export default function NotificationInbox({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen]);
+  }, [changeOpen, isOpen]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -140,7 +158,7 @@ export default function NotificationInbox({
           description: notification.data.message,
           action: {
             label: "Buka inbox",
-            onClick: () => setIsOpen(true),
+            onClick: () => changeOpen(true),
           },
         });
         void onNewNotification();
@@ -156,7 +174,7 @@ export default function NotificationInbox({
     return () => {
       unsubscribe?.();
     };
-  }, [onNewNotification, token, userId]);
+  }, [changeOpen, onNewNotification, token, userId]);
 
   async function handleMarkRead(notification: AppNotification) {
     if (notification.read_at) return;
@@ -203,32 +221,35 @@ export default function NotificationInbox({
 
   return (
     <div className="relative" ref={containerRef}>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => {
-          setIsOpen((open) => !open);
-          if (!isOpen) {
-            void loadNotifications().catch((error: unknown) => {
-              toast.error(
-                error instanceof Error
-                  ? error.message
-                  : "Inbox notifikasi belum dapat dimuat."
-              );
-            });
-          }
-        }}
-        aria-label={`Buka inbox notifikasi${unreadCount ? `, ${unreadCount} belum dibaca` : ""}`}
-        aria-expanded={isOpen}
-        className="relative rounded-xl"
-      >
-        <Bell className="size-4 text-foreground" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-in zoom-in-50">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => {
+            const nextOpen = !isOpen;
+            changeOpen(nextOpen);
+            if (nextOpen) {
+              void loadNotifications().catch((error: unknown) => {
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : "Inbox notifikasi belum dapat dimuat."
+                );
+              });
+            }
+          }}
+          aria-label={`Buka inbox notifikasi${unreadCount ? `, ${unreadCount} belum dibaca` : ""}`}
+          aria-expanded={isOpen}
+          className="relative rounded-xl"
+        >
+          <Bell className="size-4 text-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-in zoom-in-50">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </Button>
+      )}
 
       {isOpen && (
         <section

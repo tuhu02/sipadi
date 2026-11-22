@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EmptyNotice, LoadingRows } from "./shared";
+import { EmptyNotice, formatDateOnly, LoadingRows } from "./shared";
 
 export function TerritorySection({
   references,
@@ -121,7 +121,8 @@ export function TerritorySection({
                   <Calendar className="size-3.5 text-primary" />
                   <span className="font-semibold">{musim.nama}</span>
                   <span className="text-muted-foreground">
-                    ({musim.tanggal_mulai} s/d {musim.tanggal_selesai})
+                    ({formatDateOnly(musim.tanggal_mulai)} s/d{" "}
+                    {formatDateOnly(musim.tanggal_selesai)})
                   </span>
                 </div>
               ))}

@@ -8,9 +8,11 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\KecamatanController;
 use App\Http\Controllers\DesaController;
 use App\Http\Controllers\LahanController;
+use App\Http\Controllers\LuasArealController;
 use App\Http\Controllers\MusimTanamController;
 use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProvitasController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -30,5 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('lahan', LahanController::class);
         Route::apiResource('musim-tanam', MusimTanamController::class);
         Route::apiResource('penugasan', PenugasanController::class);
+        Route::apiResource('provitas', ProvitasController::class);
+        Route::apiResource('luas-areal', LuasArealController::class);
     });
 });

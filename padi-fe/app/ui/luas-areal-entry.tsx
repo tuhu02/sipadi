@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
+  ChevronRight,
   FileText,
   MapPin,
   Save,
@@ -12,7 +13,6 @@ import {
 import { ReferenceDesa, SyncRecord } from "@/app/lib/auth";
 import { LocalLuasAreal } from "@/app/lib/offline-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +31,9 @@ type LuasArealEntryProps = {
   records: SyncRecord[];
   isOnline: boolean;
   onSave: (record: LocalLuasAreal) => Promise<void>;
+  editRecord?: SyncRecord | null;
+  initialDesaId?: string;
+  onCancelEdit?: () => void;
 };
 
 const monthNames = [
@@ -59,11 +62,14 @@ export default function LuasArealEntry({
   records,
   isOnline,
   onSave,
+  editRecord = null,
+  initialDesaId = "",
+  onCancelEdit,
 }: LuasArealEntryProps) {
   const now = new Date();
-  const [desaId, setDesaId] = useState("");
-  const [bulan, setBulan] = useState(now.getMonth() + 1);
-  const [tahun, setTahun] = useState(now.getFullYear());
+  const [desaId, setDesaId] = useState(editRecord?.desa_id ?? initialDesaId);
+  const [bulan, setBulan] = useState(editRecord ? Number(editRecord.bulan) : now.getMonth() + 1);
+  const [tahun, setTahun] = useState(editRecord ? Number(editRecord.tahun) : now.getFullYear());
   const [editedForm, setEditedForm] = useState<{
     key: string;
     values: {
@@ -174,7 +180,23 @@ export default function LuasArealEntry({
   }
 
   return (
-    <Card className="shadow-md">
+    <div className="space-y-3">
+      {onCancelEdit && (
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onCancelEdit}
+            className="-ml-2 text-muted-foreground"
+          >
+            Luas Areal
+          </Button>
+          <ChevronRight className="size-4 text-muted-foreground" />
+          <span className="font-medium text-foreground">Formulir</span>
+        </nav>
+      )}
+      <Card className="shadow-md">
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2.5">
@@ -182,15 +204,14 @@ export default function LuasArealEntry({
               <FileText className="size-5" />
             </div>
             <div>
-              <CardTitle className="text-xl font-bold">Laporan Luas Areal Padi</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                {editRecord ? "Mengedit Laporan Luas Areal" : "Laporan Luas Areal Padi"}
+              </CardTitle>
               <CardDescription>
                 Pencatatan rekapitulasi luas tanam, luas panen, dan puso bulanan.
               </CardDescription>
             </div>
           </div>
-          <Badge variant={isOnline ? "success" : "warning"} className="w-fit">
-            {isOnline ? "Mode Online" : "Mode Offline"}
-          </Badge>
         </div>
       </CardHeader>
 
@@ -224,20 +245,29 @@ export default function LuasArealEntry({
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="desa_select">Desa Penugasan</Label>
-                <select
-                  id="desa_select"
-                  value={desaId}
-                  onChange={(e) => setDesaId(e.target.value)}
-                  required
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">Pilih desa...</option>
-                  {desa.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nama} ({item.kode})
-                    </option>
-                  ))}
-                </select>
+                {initialDesaId ? (
+                  <div
+                    id="desa_select"
+                    className="flex h-11 items-center rounded-xl border border-input bg-muted/40 px-3 text-sm text-foreground"
+                  >
+                    {desa.find((item) => item.id === desaId)?.nama ?? "Desa terpilih"}
+                  </div>
+                ) : (
+                  <select
+                    id="desa_select"
+                    value={desaId}
+                    onChange={(e) => setDesaId(e.target.value)}
+                    required
+                    className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Pilih desa...</option>
+                    {desa.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nama} ({item.kode})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -352,6 +382,17 @@ export default function LuasArealEntry({
         </p>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {onCancelEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={onCancelEdit}
+              className="flex-1 sm:flex-none"
+            >
+              {editRecord ? "Batalkan Edit" : "Batal"}
+            </Button>
+          )}
           <Button
             type="submit"
             form="luas-areal-form"
@@ -363,6 +404,7 @@ export default function LuasArealEntry({
           </Button>
         </div>
       </CardFooter>
-    </Card>
+      </Card>
+    </div>
   );
 }

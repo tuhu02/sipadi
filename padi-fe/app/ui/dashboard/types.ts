@@ -1,4 +1,5 @@
 import { SyncRecord } from "@/app/lib/auth";
+import { AdminResource } from "@/app/lib/admin";
 
 export type DashboardSection =
   | "ringkasan"
@@ -24,6 +25,20 @@ export type DashboardNavigationItem = {
   pplOnly?: boolean;
   adminOnly?: boolean;
 };
+
+export const adminNavigationItems: {
+  id: AdminResource;
+  label: string;
+}[] = [
+  { id: "users", label: "Akun" },
+  { id: "kecamatan", label: "Kecamatan" },
+  { id: "desa", label: "Desa" },
+  { id: "lahan", label: "Lahan" },
+  { id: "provitas", label: "Provitas" },
+  { id: "luas-areal", label: "Luas Areal" },
+  { id: "musim-tanam", label: "Musim Tanam" },
+  { id: "penugasan", label: "Penugasan" },
+];
 
 export const navigation: DashboardNavigationItem[] = [
   { id: "ringkasan", label: "Ringkasan", icon: "grid" },

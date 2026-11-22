@@ -6,6 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use App\Models\User;
 use App\Models\Penugasan;
+use App\Models\Provitas;
+use App\Models\LuasAreal;
 use Illuminate\Validation\Validator;
 
 class AdminMasterRequest extends FormRequest
@@ -45,6 +47,34 @@ class AdminMasterRequest extends FormRequest
                 'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
             ];
         }
+        if ($this->routeIs('provitas.*')) {
+            return [
+                'ppl_id' => [...$sometimes, 'uuid', 'exists:users,id', function ($attribute, $value, $fail) {
+                    if (! User::whereKey($value)->where('role', 'ppl')->exists()) $fail('Catatan provitas harus dimiliki akun PPL.');
+                }],
+                'lahan_id' => [...$sometimes, 'uuid', 'exists:lahan,id'],
+                'musim_tanam_id' => [...$sometimes, 'uuid', 'exists:musim_tanam,id'],
+                'tanggal_panen' => [...$sometimes, 'date'],
+                'luas_petak_m2' => [...$sometimes, 'numeric', 'gt:0', 'max:999999.99'],
+                'berat_gabah_kg' => [...$sometimes, 'numeric', 'gte:0', 'max:999999.99'],
+                'kadar_air' => ['nullable', 'numeric', 'between:0,100'],
+                'catatan' => ['nullable', 'string'],
+            ];
+        }
+        if ($this->routeIs('luas-areal.*')) {
+            return [
+                'ppl_id' => [...$sometimes, 'uuid', 'exists:users,id', function ($attribute, $value, $fail) {
+                    if (! User::whereKey($value)->where('role', 'ppl')->exists()) $fail('Laporan luas areal harus dimiliki akun PPL.');
+                }],
+                'desa_id' => [...$sometimes, 'uuid', 'exists:desa,id'],
+                'tahun' => [...$sometimes, 'integer', 'between:2000,2100'],
+                'bulan' => [...$sometimes, 'integer', 'between:1,12'],
+                'luas_tanam_ha' => [...$sometimes, 'numeric', 'gte:0', 'max:99999999.99'],
+                'luas_panen_ha' => [...$sometimes, 'numeric', 'gte:0', 'max:99999999.99'],
+                'luas_puso_ha' => ['nullable', 'numeric', 'gte:0', 'max:99999999.99'],
+                'catatan' => ['nullable', 'string'],
+            ];
+        }
         return [];
     }
 
@@ -62,6 +92,59 @@ class AdminMasterRequest extends FormRequest
                     $q->whereNull('tanggal_selesai')->orWhereDate('tanggal_selesai', '>=', $start);
                 })->exists();
             if ($overlap) $validator->errors()->add('tanggal_mulai', 'Penugasan aktif tidak boleh tumpang tindih.');
+        });
+
+        $validator->after(function (Validator $validator) {
+            if (! $this->routeIs('provitas.*') || $validator->errors()->isNotEmpty()) return;
+
+            $routeId = $this->route('provita') ?? $this->route('provitas');
+            $existing = $routeId ? Provitas::find($routeId) : null;
+            $value = fn (string $key) => $this->input($key, $existing?->{$key});
+            $lahanId = $value('lahan_id');
+            $musimTanamId = $value('musim_tanam_id');
+            $luasPetak = $value('luas_petak_m2');
+            $beratGabah = $value('berat_gabah_kg');
+
+            if ($lahanId && $musimTanamId) {
+                $duplicate = Provitas::where('lahan_id', $lahanId)
+                    ->where('musim_tanam_id', $musimTanamId)
+                    ->where('deleted', false)
+                    ->when($routeId, fn ($query) => $query->where('id', '!=', $routeId))
+                    ->exists();
+                if ($duplicate) {
+                    $validator->errors()->add('lahan_id', 'Lahan ini sudah memiliki catatan provitas pada musim tanam tersebut.');
+                }
+            }
+
+            if (is_numeric($luasPetak) && (float) $luasPetak > 0 && is_numeric($beratGabah)) {
+                $provitas = ((float) $beratGabah / (float) $luasPetak) * 100;
+                if ($provitas > 1000) {
+                    $validator->errors()->add('berat_gabah_kg', 'Nilai provitas hasil perhitungan melebihi batas kewajaran.');
+                }
+            }
+        });
+
+        $validator->after(function (Validator $validator) {
+            if (! $this->routeIs('luas-areal.*') || $validator->errors()->isNotEmpty()) return;
+
+            $routeId = $this->route('luas_areal')
+                ?? $this->route('luas-areal')
+                ?? $this->route('luasAreal');
+            $existing = $routeId ? LuasAreal::find($routeId) : null;
+            $desaId = $this->input('desa_id', $existing?->desa_id);
+            $tahun = $this->input('tahun', $existing?->tahun);
+            $bulan = $this->input('bulan', $existing?->bulan);
+
+            if ($desaId && $tahun && $bulan) {
+                $duplicate = LuasAreal::where('desa_id', $desaId)
+                    ->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->when($routeId, fn ($query) => $query->where('id', '!=', $routeId))
+                    ->exists();
+                if ($duplicate) {
+                    $validator->errors()->add('desa_id', 'Desa ini sudah memiliki laporan untuk bulan dan tahun tersebut.');
+                }
+            }
         });
     }
 }

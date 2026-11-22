@@ -23,11 +23,11 @@ API hanya menyediakan respons JSON. Frontend tidak termasuk dalam repository ini
 | Role | Akses |
 | --- | --- |
 | `ppl` | Login, melihat referensi sesuai penugasan, mengirim sinkronisasi data miliknya |
-| `admin` | Melihat rekap dan mengelola akun serta CRUD master data |
+| `admin` | Melihat rekap, mengelola akun dan data master, serta CRUD catatan provitas atas nama PPL |
 
 PPL hanya dapat mengirim data untuk desa atau lahan yang berada di kecamatan dengan penugasan aktif. Penugasan aktif berarti `tanggal_mulai <= hari ini` dan `tanggal_selesai` kosong atau `tanggal_selesai >= hari ini`.
 
-Admin dapat mengelola akun dan data master melalui menu `Kelola data` di frontend. Halaman `Wilayah & lahan` tetap menampilkan data referensi secara baca-saja.
+Admin dapat mengelola akun, data master, dan catatan provitas melalui menu `Kelola data` di frontend. Saat admin membuat atau mengubah catatan provitas, akun PPL pemilik harus dipilih dan nilai provitas dihitung ulang oleh server. Penghapusan catatan provitas memakai tombstone agar perubahan ikut tersinkron ke perangkat PPL. Halaman `Wilayah & lahan` tetap menampilkan data referensi secara baca-saja.
 
 ## Instalasi
 
@@ -296,9 +296,10 @@ Endpoint ini hanya dapat digunakan oleh role `ppl`.
 6. Nilai provitas di atas batas kewajaran ditolak.
 7. Jika record server lebih baru dari record client, versi server dikembalikan.
 8. Pengiriman ulang dengan `id` yang sama bersifat idempotent.
-9. Pelanggaran unique constraint dikembalikan sebagai alasan `duplikat`.
-10. `synced_at` diisi oleh server saat record diterima.
-11. `deleted=true` digunakan sebagai tombstone agar client dapat menghapus data lokal setelah sinkronisasi.
+9. Satu lahan hanya boleh memiliki satu catatan provitas aktif pada setiap musim tanam, tanpa bergantung pada tanggal panen.
+10. Pelanggaran unique constraint dikembalikan sebagai alasan `duplikat`.
+11. `synced_at` diisi oleh server saat record diterima.
+12. `deleted=true` digunakan sebagai tombstone agar client dapat menghapus data lokal setelah sinkronisasi.
 
 ### Response
 

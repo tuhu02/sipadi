@@ -1,4 +1,5 @@
 import { References, SyncRecord, User } from "@/app/lib/auth";
+import { AdminResource } from "@/app/lib/admin";
 import { LocalLuasAreal, LocalProvitas } from "@/app/lib/offline-store";
 import { AdminManagementSection } from "./admin-management-section";
 import { LuasArealSection, ProvitasSection } from "./record-sections";
@@ -10,6 +11,7 @@ export function DashboardSectionContent({
   section,
   user,
   token,
+  adminResource,
   references,
   isLoading,
   online,
@@ -25,12 +27,18 @@ export function DashboardSectionContent({
   onSaveProvitas,
   onSaveLuasAreal,
   onEditProvitas,
+  onDeleteProvitas,
+  onEditArea,
+  onDeleteArea,
   editingProvitas,
+  editingArea,
   onCancelEditProvitas,
+  onCancelEditArea,
 }: {
   section: DashboardSection;
   user: User;
   token: string;
+  adminResource: AdminResource;
   references: References | null;
   isLoading: boolean;
   online: boolean;
@@ -46,8 +54,13 @@ export function DashboardSectionContent({
   onSaveProvitas: (record: LocalProvitas) => Promise<void>;
   onSaveLuasAreal: (record: LocalLuasAreal) => Promise<void>;
   onEditProvitas: (record: SyncRecord) => void;
+  onDeleteProvitas: (record: SyncRecord) => void;
+  onEditArea: (record: SyncRecord) => void;
+  onDeleteArea: (record: SyncRecord) => void;
   editingProvitas: SyncRecord | null;
+  editingArea: SyncRecord | null;
   onCancelEditProvitas: () => void;
+  onCancelEditArea: () => void;
 }) {
   const isPpl = user.role === "ppl";
 
@@ -73,7 +86,12 @@ export function DashboardSectionContent({
       );
     case "admin":
       return user.role === "admin" ? (
-        <AdminManagementSection token={token} currentUserId={user.id} />
+        <AdminManagementSection
+          key={adminResource}
+          token={token}
+          currentUserId={user.id}
+          resource={adminResource}
+        />
       ) : null;
     case "provitas":
       return (
@@ -88,6 +106,7 @@ export function DashboardSectionContent({
           onToggleEntry={onToggleProvitasEntry}
           onSave={onSaveProvitas}
           onEdit={onEditProvitas}
+          onDelete={onDeleteProvitas}
           editRecord={editingProvitas}
           onCancelEdit={onCancelEditProvitas}
         />
@@ -104,6 +123,10 @@ export function DashboardSectionContent({
           isOnline={online}
           onToggleEntry={onToggleAreaEntry}
           onSave={onSaveLuasAreal}
+          onEdit={onEditArea}
+          onDelete={onDeleteArea}
+          editRecord={editingArea}
+          onCancelEdit={onCancelEditArea}
         />
       );
   }

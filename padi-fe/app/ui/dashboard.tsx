@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { AdminResource } from "@/app/lib/admin";
 import {
   AlertCircle,
   CheckCircle2,
-  FilePlus,
-  Plus,
   RefreshCw,
 } from "lucide-react";
 import { ApiError } from "@/app/lib/api";
@@ -31,10 +31,10 @@ import {
   updateProvitasAfterSync,
 } from "@/app/lib/offline-store";
 import {
-  DashboardHeader,
   DashboardSidebar,
   MobileNavigation,
 } from "@/app/ui/dashboard/navigation";
+import NotificationInbox from "@/app/ui/notification-inbox";
 import { DashboardSectionContent } from "@/app/ui/dashboard/section-content";
 import { DashboardSection, navigation } from "@/app/ui/dashboard/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -56,12 +56,15 @@ export default function Dashboard({
   onLogout,
 }: DashboardProps) {
   const [section, setSection] = useState<DashboardSection>("ringkasan");
+  const [adminResource, setAdminResource] = useState<AdminResource>("users");
   const [references, setReferences] = useState<References | null>(null);
   const [localProvitas, setLocalProvitas] = useState<LocalProvitas[]>([]);
   const [localLuasAreal, setLocalLuasAreal] = useState<LocalLuasAreal[]>([]);
   const [isProvitasEntryOpen, setIsProvitasEntryOpen] = useState(false);
   const [isAreaEntryOpen, setIsAreaEntryOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [editingProvitas, setEditingProvitas] = useState<SyncRecord | null>(null);
+  const [editingArea, setEditingArea] = useState<SyncRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [syncError, setSyncError] = useState("");
@@ -76,10 +79,6 @@ export default function Dashboard({
       (!item.pplOnly || user.role === "ppl") &&
       (!item.adminOnly || user.role === "admin")
   );
-  const sectionTitle = visibleNavigation.find(
-    (item) => item.id === section
-  )?.label;
-
   const showLoadError = useCallback((requestError: unknown) => {
     if (requestError instanceof ApiError && requestError.status === 401) {
       setLoadError(
@@ -251,8 +250,7 @@ export default function Dashboard({
       .filter(
         (record) =>
           !record.synced_at &&
-          !record.sync_error &&
-          !record.deleted
+          !record.sync_error
       )
       .map((record) => `${record.id}:${record.updated_at}`)
       .sort()
@@ -262,8 +260,7 @@ export default function Dashboard({
       .filter(
         (record) =>
           !record.synced_at &&
-          !record.sync_error &&
-          !record.deleted
+          !record.sync_error
       )
       .map((record) => `${record.id}:${record.updated_at}`)
       .sort()
@@ -272,7 +269,11 @@ export default function Dashboard({
   async function handleSaveProvitas(record: LocalProvitas) {
     await saveLocalProvitas(user.id, record);
     setLocalProvitas(await getLocalProvitas(user.id));
-    if (editingProvitas?.id === record.id) setEditingProvitas(null);
+    if (editingProvitas?.id === record.id) {
+      setEditingProvitas(null);
+      setIsProvitasEntryOpen(false);
+      toast.success("Perubahan catatan provitas berhasil disimpan.");
+    }
     setSyncError("");
   }
 
@@ -280,6 +281,28 @@ export default function Dashboard({
     setEditingProvitas(record);
     setIsProvitasEntryOpen(true);
     setSection("provitas");
+  }
+
+  async function handleDeleteProvitas(record: SyncRecord) {
+    if (!window.confirm("Hapus catatan provitas ini? Data akan dihapus setelah sinkronisasi.")) return;
+
+    await saveLocalProvitas(user.id, {
+      id: record.id,
+      lahan_id: record.lahan_id ?? "",
+      musim_tanam_id: record.musim_tanam_id ?? "",
+      tanggal_panen: record.tanggal_panen ?? "",
+      luas_petak_m2: Number(record.luas_petak_m2 ?? 0),
+      berat_gabah_kg: Number(record.berat_gabah_kg ?? 0),
+      kadar_air: record.kadar_air == null ? null : Number(record.kadar_air),
+      catatan: record.catatan ?? null,
+      provitas_kuha: Number(record.provitas_kuha ?? 0),
+      updated_at: new Date().toISOString(),
+      synced_at: null,
+      deleted: true,
+      sync_error: null,
+    });
+    setLocalProvitas(await getLocalProvitas(user.id));
+    setSyncError("");
   }
 
   function handleToggleProvitasEntry() {
@@ -295,7 +318,49 @@ export default function Dashboard({
   async function handleSaveLuasAreal(record: LocalLuasAreal) {
     await saveLocalLuasAreal(user.id, record);
     setLocalLuasAreal(await getLocalLuasAreal(user.id));
+    if (editingArea?.id === record.id) {
+      setEditingArea(null);
+      setIsAreaEntryOpen(false);
+      toast.success("Perubahan laporan luas areal berhasil disimpan.");
+    }
     setSyncError("");
+  }
+
+  function handleEditArea(record: SyncRecord) {
+    setEditingArea(record);
+    setIsAreaEntryOpen(true);
+    setSection("luas_areal");
+  }
+
+  async function handleDeleteArea(record: SyncRecord) {
+    if (!window.confirm("Hapus laporan luas areal ini? Data akan dihapus setelah sinkronisasi.")) return;
+
+    await saveLocalLuasAreal(user.id, {
+      id: record.id,
+      desa_id: record.desa_id ?? "",
+      tahun: Number(record.tahun),
+      bulan: Number(record.bulan),
+      luas_tanam_ha: Number(record.luas_tanam_ha ?? 0),
+      luas_panen_ha: Number(record.luas_panen_ha ?? 0),
+      luas_puso_ha: record.luas_puso_ha == null ? null : Number(record.luas_puso_ha),
+      catatan: record.catatan ?? null,
+      updated_at: new Date().toISOString(),
+      synced_at: null,
+      deleted: true,
+      sync_error: null,
+    });
+    setLocalLuasAreal(await getLocalLuasAreal(user.id));
+    setSyncError("");
+  }
+
+  function handleToggleAreaEntry() {
+    if (isAreaEntryOpen) setEditingArea(null);
+    setIsAreaEntryOpen((open) => !open);
+  }
+
+  function handleCancelEditArea() {
+    setEditingArea(null);
+    setIsAreaEntryOpen(false);
   }
 
   const handleSync = useCallback(
@@ -312,15 +377,13 @@ export default function Dashboard({
           (record) =>
             (automatic
               ? !record.synced_at && !record.sync_error
-              : !record.synced_at || record.sync_error) &&
-            !record.deleted
+              : !record.synced_at || record.sync_error)
         );
         const pendingAreaRecords = (await getLocalLuasAreal(user.id)).filter(
           (record) =>
             (automatic
               ? !record.synced_at && !record.sync_error
-              : !record.synced_at || record.sync_error) &&
-            !record.deleted
+              : !record.synced_at || record.sync_error)
         );
         const lastSync = await getLastSync(user.id);
         const result = await syncProvitas(
@@ -409,94 +472,45 @@ export default function Dashboard({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      {user.role === "ppl" && (
+        <div className="fixed right-4 top-4 z-50">
+          <NotificationInbox
+            token={token}
+            userId={user.id}
+            onNewNotification={loadReferences}
+            open={isNotificationOpen}
+            onOpenChange={setIsNotificationOpen}
+            hideTrigger
+          />
+        </div>
+      )}
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <DashboardSidebar
           items={visibleNavigation}
           section={section}
           onSectionChange={setSection}
+          adminResource={adminResource}
+          onAdminResourceChange={setAdminResource}
+          user={user}
+          isLoggingOut={isLoggingOut}
+          onLogout={onLogout}
+          onOpenNotifications={() => setIsNotificationOpen(true)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <DashboardHeader
-            sectionTitle={sectionTitle}
-            online={online}
-            user={user}
-            token={token}
-            isLoggingOut={isLoggingOut}
-            onLogout={onLogout}
-            onNewNotification={loadReferences}
-          />
           <MobileNavigation
             items={visibleNavigation}
             section={section}
             onSectionChange={setSection}
+            adminResource={adminResource}
+            onAdminResourceChange={setAdminResource}
+            user={user}
+            isLoggingOut={isLoggingOut}
+            onLogout={onLogout}
+            onOpenNotifications={() => setIsNotificationOpen(true)}
           />
 
           <div className="flex-1 px-4 py-6 sm:px-7 sm:py-8 lg:px-9">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-              {/* Header Hero Banner */}
-              <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-emerald-900 p-6 sm:p-8 text-white shadow-xl shadow-primary/10">
-                <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">
-                      {new Intl.DateTimeFormat("id-ID", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                        timeZone: "Asia/Jakarta",
-                      }).format(new Date())}
-                    </p>
-                    <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                      {section === "ringkasan"
-                        ? `Selamat datang, ${user.nama}`
-                        : sectionTitle}
-                    </h1>
-                    <p className="max-w-xl text-sm leading-relaxed text-emerald-100/90 pt-1">
-                      {user.role === "ppl"
-                        ? "Pantau wilayah penugasan, catat ubinan provitas, dan rekapitulasi luas areal padi."
-                        : "Kelola akun, wilayah, lahan, musim tanam, dan penugasan PPL."}
-                    </p>
-                  </div>
-
-                  {user.role === "ppl" && (
-                    <Button
-                      variant="secondary"
-                      size="lg"
-                      onClick={() => {
-                        if (section === "luas_areal") {
-                          setIsAreaEntryOpen((open) => !open);
-                        } else if (section === "provitas") {
-                          handleToggleProvitasEntry();
-                        } else {
-                          setEditingProvitas(null);
-                          setSection("provitas");
-                          setIsProvitasEntryOpen(true);
-                        }
-                      }}
-                      className="self-start sm:self-center font-bold text-primary shadow-sm hover:bg-white"
-                    >
-                      {section === "luas_areal" ? (
-                        isAreaEntryOpen ? (
-                          "Tutup Formulir"
-                        ) : (
-                          <>
-                            <FilePlus className="size-4" />
-                            <span>Catat Luas Areal</span>
-                          </>
-                        )
-                      ) : section === "provitas" && isProvitasEntryOpen ? (
-                        "Tutup Formulir"
-                      ) : (
-                        <>
-                          <Plus className="size-4" />
-                          <span>Catat Provitas</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </section>
-
               {logoutError && (
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
@@ -544,6 +558,7 @@ export default function Dashboard({
                 section={section}
                 user={user}
                 token={token}
+                adminResource={adminResource}
                 references={references}
                 isLoading={isLoading}
                 online={online}
@@ -555,19 +570,21 @@ export default function Dashboard({
                 isAreaEntryOpen={isAreaEntryOpen}
                 onSectionChange={setSection}
                 onToggleProvitasEntry={handleToggleProvitasEntry}
-                onToggleAreaEntry={() => setIsAreaEntryOpen((open) => !open)}
+                onToggleAreaEntry={handleToggleAreaEntry}
                 onSaveProvitas={handleSaveProvitas}
                 onSaveLuasAreal={handleSaveLuasAreal}
                 onEditProvitas={handleEditProvitas}
+                onDeleteProvitas={handleDeleteProvitas}
+                onEditArea={handleEditArea}
+                onDeleteArea={handleDeleteArea}
                 editingProvitas={editingProvitas}
+                editingArea={editingArea}
                 onCancelEditProvitas={handleCancelEditProvitas}
+                onCancelEditArea={handleCancelEditArea}
               />
 
               <footer className="flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <p>SiPadi · Sistem Informasi Pencatatan dan Validasi Padi</p>
-                <p>
-                  Pengguna: <strong className="text-foreground">{user.nama}</strong> ({user.role === "ppl" ? "Penyuluh Pertanian Lapangan" : "Administrator Sistem"})
-                </p>
               </footer>
             </div>
           </div>

@@ -61,6 +61,31 @@ export function formatDate(value: string | null | undefined) {
   }).format(date);
 }
 
+export function formatDateOnly(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function formatMeasurement(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 2,
+  }).format(number);
+}
+
 export function Brand() {
   return (
     <div className="flex items-center gap-3">
@@ -141,13 +166,23 @@ export function RecordList({
         >
           <div className="min-w-0 space-y-1">
             <p className="truncate text-sm font-semibold text-foreground">
-              {recordTitle(record, section)}
+              {section === "provitas"
+                ? `Panen ${formatDateOnly(record.tanggal_panen)}`
+                : recordTitle(record, section)}
             </p>
             <p className="text-xs text-muted-foreground">
               {section === "luas_areal"
                 ? `${desa.find((item) => item.id === record.desa_id)?.nama ?? "Desa"} · Diperbarui ${formatDate(record.updated_at)}`
                 : `Diperbarui ${formatDate(record.updated_at)}`}
             </p>
+            {section === "provitas" && (
+              <p className="text-xs text-muted-foreground">
+                Provitas{" "}
+                <span className="font-medium text-foreground">
+                  {formatMeasurement(record.provitas_kuha)} Ku/Ha
+                </span>
+              </p>
+            )}
             {section === "luas_areal" && (
               <p className="text-xs text-muted-foreground">
                 Tanam <span className="font-medium text-foreground">{record.luas_tanam_ha ?? 0} ha</span> · Panen{" "}
@@ -163,9 +198,14 @@ export function RecordList({
           </div>
           <div className="flex items-center gap-2.5 sm:shrink-0">
             {record.synced_at && (
-              <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+              <Badge
+                variant="outline"
+                title="Tersinkron"
+                role="img"
+                aria-label="Tersinkron"
+                className="size-8 justify-center rounded-full p-0 text-emerald-700"
+              >
                 <Check className="size-3 text-emerald-600" />
-                Tersinkron
               </Badge>
             )}
             {onEdit && (

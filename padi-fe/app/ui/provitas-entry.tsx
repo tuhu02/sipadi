@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Calculator,
   CheckCircle2,
+  ChevronRight,
+  Info,
   MapPin,
   Save,
   Sparkles,
@@ -18,7 +20,7 @@ import {
   SyncRecord,
 } from "@/app/lib/auth";
 import { LocalProvitas } from "@/app/lib/offline-store";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,9 +40,11 @@ type ProvitasEntryProps = {
   desa: ReferenceDesa[];
   lahan: ReferenceLahan[];
   musimTanam: ReferenceMusimTanam[];
+  records: SyncRecord[];
   onSave: (record: LocalProvitas) => Promise<void>;
   isOnline: boolean;
   editRecord: SyncRecord | null;
+  initialLahanId?: string;
   onCancelEdit: () => void;
 };
 
@@ -55,12 +59,14 @@ export default function ProvitasEntry({
   desa,
   lahan,
   musimTanam,
+  records,
   onSave,
   isOnline,
   editRecord,
+  initialLahanId: preselectedLahanId = "",
   onCancelEdit,
 }: ProvitasEntryProps) {
-  const initialLahanId = editRecord?.lahan_id ?? "";
+  const initialLahanId = editRecord?.lahan_id ?? preselectedLahanId;
   const initialDesaId =
     lahan.find((item) => item.id === initialLahanId)?.desa_id ?? "";
   const initialKecamatanId =
@@ -75,7 +81,7 @@ export default function ProvitasEntry({
     editRecord?.tanggal_panen?.slice(0, 10) ?? "",
   );
   const [luasPetak, setLuasPetak] = useState(
-    editRecord?.luas_petak_m2 == null ? "" : String(editRecord.luas_petak_m2),
+    editRecord ? String(editRecord.luas_petak_m2 ?? "") : "6.25",
   );
   const [beratGabah, setBeratGabah] = useState(
     editRecord?.berat_gabah_kg == null
@@ -89,6 +95,16 @@ export default function ProvitasEntry({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const formCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editRecord) {
+      formCardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [editRecord]);
 
   const filteredDesa = useMemo(
     () => desa.filter((item) => item.kecamatan_id === kecamatanId),
@@ -144,6 +160,20 @@ export default function ProvitasEntry({
       }
     }
 
+    const alreadyRecorded = records.some(
+      (record) =>
+        !record.deleted &&
+        record.id !== editRecord?.id &&
+        record.lahan_id === lahanId &&
+        record.musim_tanam_id === musimTanamId,
+    );
+    if (alreadyRecorded) {
+      setError(
+        "Lahan ini sudah memiliki catatan provitas untuk musim tanam tersebut.",
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -177,7 +207,7 @@ export default function ProvitasEntry({
       setLahanId("");
       setMusimTanamId("");
       setTanggalPanen("");
-      setLuasPetak("");
+      setLuasPetak("6.25");
       setBeratGabah("");
       setKadarAir("");
       setCatatan("");
@@ -193,7 +223,24 @@ export default function ProvitasEntry({
   }
 
   return (
-    <Card className="max-w-4xl mx-auto shadow-md">
+    <div className="mx-auto w-full max-w-4xl space-y-3">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCancelEdit}
+          className="-ml-2 text-muted-foreground"
+        >
+          Data Provitas
+        </Button>
+        <ChevronRight className="size-4 text-muted-foreground" />
+        <span className="font-medium text-foreground">Formulir</span>
+      </nav>
+      <Card
+        ref={formCardRef}
+        className="scroll-mt-24 shadow-md"
+      >
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2.5">
@@ -202,10 +249,12 @@ export default function ProvitasEntry({
             </div>
             <div>
               <CardTitle className="text-xl font-bold">
-                {editRecord ? "Edit Data Provitas" : "Catat Data Provitas Baru"}
+                {editRecord ? "Mengedit Catatan Provitas" : "Catat Data Provitas Baru"}
               </CardTitle>
               <CardDescription>
-                Input data ubinan panen lapangan untuk perhitungan produktivitas padi.
+                {editRecord
+                  ? "Perbarui informasi catatan yang dipilih, lalu simpan perubahan."
+                  : "Input data ubinan panen lapangan untuk perhitungan produktivitas padi."}
               </CardDescription>
             </div>
           </div>
@@ -219,6 +268,18 @@ export default function ProvitasEntry({
       </CardHeader>
 
       <CardContent>
+        {editRecord && (
+          <Alert variant="info" role="note" className="mb-6">
+            <Info className="size-4" />
+            <AlertTitle>Mode edit aktif</AlertTitle>
+            <AlertDescription>
+              Periksa dan ubah data yang diperlukan, lalu pilih{" "}
+              <strong>Simpan Perubahan</strong>. Pilih{" "}
+              <strong>Batalkan Edit</strong> untuk kembali tanpa menyimpan.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="size-4" />
@@ -249,72 +310,86 @@ export default function ProvitasEntry({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="kecamatan">Kecamatan</Label>
-                <select
-                  id="kecamatan"
-                  value={kecamatanId}
-                  onChange={(e) => {
-                    setKecamatanId(e.target.value);
-                    setDesaId("");
-                    setLahanId("");
-                  }}
-                  required
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">Pilih kecamatan tugas...</option>
-                  {kecamatan.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nama} ({item.kode})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {initialLahanId ? (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Lahan yang dipilih</Label>
+                  <div className="flex min-h-11 items-center rounded-xl border border-input bg-muted/40 px-3 text-sm text-foreground">
+                    {kecamatan.find((item) => item.id === kecamatanId)?.nama} ·{" "}
+                    {desa.find((item) => item.id === desaId)?.nama} ·{" "}
+                    {lahan.find((item) => item.id === lahanId)?.kode_sampel} —{" "}
+                    {lahan.find((item) => item.id === lahanId)?.nama_petani}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="kecamatan">Kecamatan</Label>
+                    <select
+                      id="kecamatan"
+                      value={kecamatanId}
+                      onChange={(e) => {
+                        setKecamatanId(e.target.value);
+                        setDesaId("");
+                        setLahanId("");
+                      }}
+                      required
+                      className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="">Pilih kecamatan tugas...</option>
+                      {kecamatan.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nama} ({item.kode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="desa">Desa</Label>
-                <select
-                  id="desa"
-                  value={desaId}
-                  onChange={(e) => {
-                    setDesaId(e.target.value);
-                    setLahanId("");
-                  }}
-                  disabled={!kecamatanId}
-                  required
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  <option value="">
-                    {kecamatanId ? "Pilih desa binaan..." : "Pilih kecamatan terlebih dahulu"}
-                  </option>
-                  {filteredDesa.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nama} ({item.kode})
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="desa">Desa</Label>
+                    <select
+                      id="desa"
+                      value={desaId}
+                      onChange={(e) => {
+                        setDesaId(e.target.value);
+                        setLahanId("");
+                      }}
+                      disabled={!kecamatanId}
+                      required
+                      className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    >
+                      <option value="">
+                        {kecamatanId ? "Pilih desa binaan..." : "Pilih kecamatan terlebih dahulu"}
+                      </option>
+                      {filteredDesa.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nama} ({item.kode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lahan">Petak Lahan & Petani</Label>
-                <select
-                  id="lahan"
-                  value={lahanId}
-                  onChange={(e) => setLahanId(e.target.value)}
-                  disabled={!desaId}
-                  required
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  <option value="">
-                    {desaId ? "Pilih sampel lahan petani..." : "Pilih desa terlebih dahulu"}
-                  </option>
-                  {filteredLahan.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nama_petani} — Sampel {item.kode_sampel} ({item.luas_lahan_ha} ha)
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lahan">Petak Lahan & Petani</Label>
+                    <select
+                      id="lahan"
+                      value={lahanId}
+                      onChange={(e) => setLahanId(e.target.value)}
+                      disabled={!desaId}
+                      required
+                      className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    >
+                      <option value="">
+                        {desaId ? "Pilih sampel lahan petani..." : "Pilih desa terlebih dahulu"}
+                      </option>
+                      {filteredLahan.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nama_petani} — Sampel {item.kode_sampel} ({item.luas_lahan_ha} ha)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="musim">Musim Tanam</Label>
@@ -337,13 +412,15 @@ export default function ProvitasEntry({
           </div>
 
           {/* Section: Parameter Ubinan */}
-          <div className="rounded-2xl border border-border bg-muted/20 p-5 space-y-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <Calculator className="size-4 text-primary" />
+          <div className="space-y-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+            <div className="flex items-center gap-2.5 text-sm font-bold text-foreground">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-secondary">
+                <Calculator className="size-4 text-primary" />
+              </span>
               <span>Pengukuran Ubinan Lapangan</span>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="tanggal_panen">Tanggal Panen / Ubinan</Label>
                 <Input
@@ -356,10 +433,7 @@ export default function ProvitasEntry({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="luas_petak">
-                  Luas Petak (m²)
-                  <span className="text-muted-foreground font-normal ml-1">(biasanya 6.25 m²)</span>
-                </Label>
+                <Label htmlFor="luas_petak">Luas Petak (m²)</Label>
                 <Input
                   id="luas_petak"
                   type="number"
@@ -371,6 +445,9 @@ export default function ProvitasEntry({
                   value={luasPetak}
                   onChange={(e) => setLuasPetak(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Nilai awal 6,25 m²; sesuaikan dengan ukuran petak.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -407,7 +484,7 @@ export default function ProvitasEntry({
             </div>
 
             {/* Live Calculation Preview Card */}
-            <div className="mt-4 rounded-xl border border-primary/20 bg-secondary/50 p-4">
+            <div className="rounded-xl border border-primary/20 bg-secondary/50 p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
@@ -461,17 +538,15 @@ export default function ProvitasEntry({
         </p>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          {editRecord && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSaving}
-              onClick={onCancelEdit}
-              className="flex-1 sm:flex-none"
-            >
-              Batal
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSaving}
+            onClick={onCancelEdit}
+            className="flex-1 sm:flex-none"
+          >
+            {editRecord ? "Batalkan Edit" : "Batal"}
+          </Button>
           <Button
             type="submit"
             form="provitas-form"
@@ -479,10 +554,17 @@ export default function ProvitasEntry({
             className="flex-1 sm:flex-none gap-2 font-semibold shadow-xs"
           >
             <Save className="size-4" />
-            <span>{isSaving ? "Menyimpan..." : "Simpan Provitas"}</span>
+            <span>
+              {isSaving
+                ? "Menyimpan..."
+                : editRecord
+                  ? "Simpan Perubahan"
+                  : "Simpan Provitas"}
+            </span>
           </Button>
         </div>
       </CardFooter>
-    </Card>
+      </Card>
+    </div>
   );
 }

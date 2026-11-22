@@ -5,6 +5,8 @@ export type AdminResource =
   | "kecamatan"
   | "desa"
   | "lahan"
+  | "provitas"
+  | "luas-areal"
   | "musim-tanam"
   | "penugasan";
 

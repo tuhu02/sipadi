@@ -145,6 +145,150 @@ class ApiTest extends TestCase
         $this->withToken($token)->getJson('/api/rekap/kecamatan')->assertForbidden();
     }
 
+    public function test_admin_can_create_update_and_delete_provitas(): void
+    {
+        $admin = User::create([
+            'nama' => 'Admin',
+            'email' => 'admin@test.local',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
+        ]);
+        $token = $admin->createToken('test')->plainTextToken;
+        $payload = [
+            'ppl_id' => $this->ppl->id,
+            'lahan_id' => $this->lahan->id,
+            'musim_tanam_id' => $this->musim->id,
+            'tanggal_panen' => '2026-05-01',
+            'luas_petak_m2' => 100,
+            'berat_gabah_kg' => 50,
+            'kadar_air' => 20,
+            'catatan' => 'Ubinan dicatat admin.',
+        ];
+
+        $response = $this->withToken($token)->postJson('/api/provitas', $payload)
+            ->assertCreated();
+        $id = $response->json('id');
+        $this->assertDatabaseHas('provitas', [
+            'id' => $id,
+            'ppl_id' => $this->ppl->id,
+            'provitas_kuha' => 50,
+            'deleted' => false,
+        ]);
+
+        $this->withToken($token)->postJson('/api/provitas', [
+            ...$payload,
+            'tanggal_panen' => '2026-05-02',
+        ])->assertUnprocessable();
+
+        $this->withToken($token)->putJson("/api/provitas/{$id}", [
+            ...$payload,
+            'berat_gabah_kg' => 60,
+        ])->assertOk();
+        $this->assertDatabaseHas('provitas', [
+            'id' => $id,
+            'berat_gabah_kg' => 60,
+            'provitas_kuha' => 60,
+        ]);
+
+        $this->withToken($token)->deleteJson("/api/provitas/{$id}")
+            ->assertNoContent();
+        $this->assertDatabaseHas('provitas', [
+            'id' => $id,
+            'deleted' => true,
+        ]);
+        $this->withToken($token)->getJson('/api/provitas')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_admin_can_create_update_and_delete_luas_areal(): void
+    {
+        $admin = User::create([
+            'nama' => 'Admin',
+            'email' => 'admin-areal@test.local',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
+        ]);
+        $token = $admin->createToken('test')->plainTextToken;
+        $payload = [
+            'ppl_id' => $this->ppl->id,
+            'desa_id' => $this->lahan->desa_id,
+            'tahun' => 2026,
+            'bulan' => 5,
+            'luas_tanam_ha' => 25,
+            'luas_panen_ha' => 20,
+            'luas_puso_ha' => 2,
+            'catatan' => 'Laporan dibuat admin.',
+        ];
+
+        $response = $this->withToken($token)->postJson('/api/luas-areal', $payload)
+            ->assertCreated();
+        $id = $response->json('id');
+        $this->assertDatabaseHas('luas_areal', [
+            'id' => $id,
+            'ppl_id' => $this->ppl->id,
+            'desa_id' => $this->lahan->desa_id,
+            'luas_tanam_ha' => 25,
+            'deleted' => false,
+        ]);
+
+        $this->withToken($token)->postJson('/api/luas-areal', $payload)
+            ->assertUnprocessable();
+
+        $this->withToken($token)->putJson("/api/luas-areal/{$id}", [
+            ...$payload,
+            'luas_panen_ha' => 18,
+        ])->assertOk();
+        $this->assertDatabaseHas('luas_areal', [
+            'id' => $id,
+            'luas_panen_ha' => 18,
+        ]);
+
+        $this->withToken($token)->deleteJson("/api/luas-areal/{$id}")
+            ->assertNoContent();
+        $this->assertDatabaseHas('luas_areal', [
+            'id' => $id,
+            'deleted' => true,
+        ]);
+        $this->withToken($token)->getJson('/api/luas-areal')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_ppl_cannot_manage_provitas_directly(): void
+    {
+        $token = $this->ppl->createToken('test')->plainTextToken;
+        $this->withToken($token)->getJson('/api/provitas')->assertForbidden();
+    }
+
+    public function test_ppl_can_only_sync_one_provitas_per_lahan_and_season(): void
+    {
+        $token = $this->ppl->createToken('test')->plainTextToken;
+        $baseRecord = [
+            'lahan_id' => $this->lahan->id,
+            'musim_tanam_id' => $this->musim->id,
+            'luas_petak_m2' => 100,
+            'berat_gabah_kg' => 50,
+            'updated_at' => '2026-05-01T10:00:00Z',
+        ];
+
+        $this->withToken($token)->postJson('/api/sync', ['provitas' => [[
+            ...$baseRecord,
+            'id' => fake()->uuid(),
+            'tanggal_panen' => '2026-05-01',
+        ]]])->assertJsonPath('hasil.provitas.0.hasil_sync', 'diterima');
+
+        $this->withToken($token)->postJson('/api/sync', ['provitas' => [[
+            ...$baseRecord,
+            'id' => fake()->uuid(),
+            'tanggal_panen' => '2026-05-02',
+            'updated_at' => '2026-05-02T10:00:00Z',
+        ]]])->assertJsonPath('hasil.provitas.0.hasil_sync', 'ditolak')
+            ->assertJsonPath('hasil.provitas.0.alasan', 'duplikat');
+
+        $this->assertDatabaseCount('provitas', 1);
+    }
+
     public function test_ppl_can_edit_provitas(): void
     {
         $record = Provitas::create(['id' => fake()->uuid(), 'lahan_id' => $this->lahan->id, 'musim_tanam_id' => $this->musim->id,
