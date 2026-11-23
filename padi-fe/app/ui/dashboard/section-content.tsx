@@ -21,7 +21,6 @@ export function DashboardSectionContent({
   pendingLuasArealCount,
   isProvitasEntryOpen,
   isAreaEntryOpen,
-  onSectionChange,
   onToggleProvitasEntry,
   onToggleAreaEntry,
   onSaveProvitas,
@@ -48,7 +47,6 @@ export function DashboardSectionContent({
   pendingLuasArealCount: number;
   isProvitasEntryOpen: boolean;
   isAreaEntryOpen: boolean;
-  onSectionChange: (section: DashboardSection) => void;
   onToggleProvitasEntry: () => void;
   onToggleAreaEntry: () => void;
   onSaveProvitas: (record: LocalProvitas) => Promise<void>;
@@ -70,14 +68,8 @@ export function DashboardSectionContent({
         <SummarySection
           references={references}
           isLoading={isLoading}
-          isPpl={isPpl}
           provitas={provitas}
           luasAreal={luasAreal}
-          onSectionChange={onSectionChange}
-          onStartProvitas={() => {
-            onSectionChange("provitas");
-            if (!isProvitasEntryOpen) onToggleProvitasEntry();
-          }}
         />
       );
     case "wilayah":

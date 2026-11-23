@@ -1,12 +1,9 @@
-import { Plus, Sparkles } from "lucide-react";
 import { References, SyncRecord } from "@/app/lib/auth";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   LoadingRows,
   SummaryCard,
 } from "./shared";
-import { DashboardSection } from "./types";
 
 const chartBounds = {
   left: 58,
@@ -285,19 +282,13 @@ function LuasArealChart({ records }: { records: SyncRecord[] }) {
 export function SummarySection({
   references,
   isLoading,
-  isPpl,
   provitas,
   luasAreal,
-  onSectionChange,
-  onStartProvitas,
 }: {
   references: References | null;
   isLoading: boolean;
-  isPpl: boolean;
   provitas: SyncRecord[];
   luasAreal: SyncRecord[];
-  onSectionChange: (section: DashboardSection) => void;
-  onStartProvitas?: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -334,31 +325,6 @@ export function SummarySection({
           loading={isLoading}
         />
       </section>
-
-      {isPpl && (
-        <Card className="border-primary/20 bg-gradient-to-r from-secondary/80 to-accent/40 shadow-xs">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-primary" />
-                <h3 className="text-base font-bold text-foreground">
-                  Pencatatan Provitas Baru
-                </h3>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                Catat hasil ubinan panen dengan memilih wilayah, sampel lahan, dan musim tanam. Estimasi provitas (Ku/Ha) dihitung seketika.
-              </p>
-            </div>
-            <Button
-              onClick={onStartProvitas ? onStartProvitas : () => onSectionChange("provitas")}
-              className="shrink-0 gap-2 font-semibold shadow-xs"
-            >
-              <Plus className="size-4" />
-              Mulai Pencatatan
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>

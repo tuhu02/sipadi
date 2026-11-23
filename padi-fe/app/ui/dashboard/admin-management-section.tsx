@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Calendar,
+  Calculator,
   ChevronRight,
   MapPin,
   Pencil,
@@ -287,7 +289,7 @@ function buildFields(
         },
         {
           name: "tanggal_panen",
-          label: "Tanggal panen",
+          label: "Tanggal panen / ubinan",
           type: "date",
           required: true,
         },
@@ -299,6 +301,7 @@ function buildFields(
           step: "0.01",
           min: "0.01",
           max: "999999.99",
+          placeholder: "Contoh: 6.25",
         },
         {
           name: "berat_gabah_kg",
@@ -307,6 +310,7 @@ function buildFields(
           required: true,
           step: "0.01",
           max: "999999.99",
+          placeholder: "Contoh: 4.8",
         },
         {
           name: "kadar_air",
@@ -314,11 +318,13 @@ function buildFields(
           type: "number",
           step: "0.01",
           max: "100",
+          placeholder: "Contoh: 14",
         },
         {
           name: "catatan",
-          label: "Catatan",
+          label: "Catatan Pengamatan Lapangan (opsional)",
           type: "textarea",
+          placeholder: "Kondisi cuaca, varietas padi, serangan OPT, atau keterangan tambahan lainnya...",
         },
       ];
     case "luas-areal":
@@ -337,7 +343,7 @@ function buildFields(
         },
         {
           name: "desa_id",
-          label: "Desa",
+          label: "Desa penugasan",
           type: "select",
           required: true,
           options: desaOptions,
@@ -362,28 +368,36 @@ function buildFields(
         },
         {
           name: "luas_tanam_ha",
-          label: "Luas tanam (ha)",
+          label: "Luas tanam (Ha)",
           type: "number",
           required: true,
           step: "0.01",
           max: "99999999.99",
+          placeholder: "0.00",
         },
         {
           name: "luas_panen_ha",
-          label: "Luas panen (ha)",
+          label: "Luas panen (Ha)",
           type: "number",
           required: true,
           step: "0.01",
           max: "99999999.99",
+          placeholder: "0.00",
         },
         {
           name: "luas_puso_ha",
-          label: "Luas puso (ha)",
+          label: "Luas puso / gagal panen (Ha)",
           type: "number",
           step: "0.01",
           max: "99999999.99",
+          placeholder: "0.00",
         },
-        { name: "catatan", label: "Catatan", type: "textarea" },
+        {
+          name: "catatan",
+          label: "Catatan Tambahan (opsional)",
+          type: "textarea",
+          placeholder: "Faktor cuaca, banjir, kekeringan, serangan hama, atau keterangan lainnya...",
+        },
       ];
     case "musim-tanam":
       return [
@@ -782,6 +796,81 @@ export function AdminManagementSection({
     }
   }
 
+  function renderField(field: AdminField) {
+    return (
+      <div key={field.name} className="space-y-2">
+        <Label htmlFor={`admin-${field.name}`}>{field.label}</Label>
+        {field.type === "select" ? (
+          <select
+            id={`admin-${field.name}`}
+            required={field.required}
+            disabled={
+              resource === "users" &&
+              field.name === "role" &&
+              editingId === currentUserId
+            }
+            value={formValues[field.name] ?? ""}
+            onChange={(event) =>
+              setFormValues((current) => ({
+                ...current,
+                [field.name]: event.target.value,
+              }))
+            }
+            className="flex h-11 w-full rounded-xl border border-input bg-background px-3.5 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">Pilih {field.label.toLowerCase()}</option>
+            {field.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : field.type === "textarea" ? (
+          <Textarea
+            id={`admin-${field.name}`}
+            required={field.required}
+            placeholder={field.placeholder}
+            rows={3}
+            value={formValues[field.name] ?? ""}
+            onChange={(event) =>
+              setFormValues((current) => ({
+                ...current,
+                [field.name]: event.target.value,
+              }))
+            }
+          />
+        ) : (
+          <Input
+            id={`admin-${field.name}`}
+            type={field.type}
+            required={field.required}
+            step={field.step}
+            max={field.max}
+            min={field.min ?? (
+              field.type === "number" &&
+              field.name !== "latitude" &&
+              field.name !== "longitude"
+                ? "0"
+                : undefined
+            )}
+            minLength={field.type === "password" ? 8 : undefined}
+            autoComplete={
+              field.type === "password" ? "new-password" : undefined
+            }
+            placeholder={field.placeholder}
+            value={formValues[field.name] ?? ""}
+            onChange={(event) =>
+              setFormValues((current) => ({
+                ...current,
+                [field.name]: event.target.value,
+              }))
+            }
+          />
+        )}
+      </div>
+    );
+  }
+
   async function handleDelete(record: AdminRecord) {
     if (resource === "users" && record.id === currentUserId) {
       setError("Akun yang sedang digunakan tidak dapat dihapus.");
@@ -1143,7 +1232,11 @@ export function AdminManagementSection({
           {formOpen && (
             <form
               onSubmit={handleSubmit}
-              className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5"
+              className={
+                resource === "provitas" || resource === "luas-areal"
+                  ? "space-y-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
+                  : "rounded-2xl border border-border bg-muted/20 p-4 sm:p-5"
+              }
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="font-semibold">
@@ -1159,94 +1252,135 @@ export function AdminManagementSection({
                   <X className="size-4" />
                 </Button>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {fields.map((field) => (
-                  <div key={field.name} className="space-y-2">
-                    <Label htmlFor={`admin-${field.name}`}>{field.label}</Label>
-                    {field.type === "select" ? (
-                      <select
-                        id={`admin-${field.name}`}
-                        required={field.required}
-                        disabled={
-                          resource === "users" &&
-                          field.name === "role" &&
-                          editingId === currentUserId
-                        }
-                        value={formValues[field.name] ?? ""}
-                        onChange={(event) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            [field.name]: event.target.value,
-                          }))
-                        }
-                        className="flex h-11 w-full rounded-xl border border-input bg-background px-3.5 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <option value="">Pilih {field.label.toLowerCase()}</option>
-                        {field.options?.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : field.type === "textarea" ? (
-                      <Textarea
-                        id={`admin-${field.name}`}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        value={formValues[field.name] ?? ""}
-                        onChange={(event) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            [field.name]: event.target.value,
-                          }))
-                        }
-                      />
-                    ) : (
-                      <Input
-                        id={`admin-${field.name}`}
-                        type={field.type}
-                        required={field.required}
-                        step={field.step}
-                        max={field.max}
-                        min={field.min ?? (
-                          field.type === "number" &&
-                          field.name !== "latitude" &&
-                          field.name !== "longitude"
-                            ? "0"
-                            : undefined
-                        )}
-                        minLength={
-                          field.type === "password" ? 8 : undefined
-                        }
-                        autoComplete={
-                          field.type === "password" ? "new-password" : undefined
-                        }
-                        placeholder={field.placeholder}
-                        value={formValues[field.name] ?? ""}
-                        onChange={(event) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            [field.name]: event.target.value,
-                          }))
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setFormOpen(false)}
-                  disabled={isSaving}
-                >
-                  Batal
-                </Button>
-                <Button type="submit" disabled={isSaving} className="gap-2">
-                  <Save className="size-4" />
-                  {isSaving ? "Menyimpan..." : "Simpan"}
-                </Button>
+              {resource === "provitas" ? (
+                <div className="space-y-5">
+                  <section className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                    <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                      <MapPin className="size-4 text-primary" />
+                      PPL dan lahan
+                    </h4>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {fields
+                        .filter((field) =>
+                          ["ppl_id", "lahan_id", "musim_tanam_id"].includes(
+                            field.name,
+                          ),
+                        )
+                        .map(renderField)}
+                    </div>
+                  </section>
+
+                  <section className="space-y-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                    <h4 className="flex items-center gap-2.5 text-sm font-bold text-foreground">
+                      <span className="flex size-9 items-center justify-center rounded-xl bg-secondary">
+                        <Calculator className="size-4 text-primary" />
+                      </span>
+                      Pengukuran ubinan lapangan
+                    </h4>
+                    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                      {fields
+                        .filter((field) =>
+                          [
+                            "tanggal_panen",
+                            "luas_petak_m2",
+                            "berat_gabah_kg",
+                            "kadar_air",
+                          ].includes(field.name),
+                        )
+                        .map(renderField)}
+                    </div>
+                  </section>
+
+                  {fields
+                    .filter((field) => field.name === "catatan")
+                    .map(renderField)}
+                </div>
+              ) : resource === "luas-areal" ? (
+                <div className="space-y-5">
+                  <section className="space-y-4 rounded-2xl border border-border bg-muted/20 p-5">
+                    <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                      <Calendar className="size-4 text-primary" />
+                      Wilayah & periode laporan
+                    </h4>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {fields
+                        .filter((field) =>
+                          ["ppl_id", "desa_id", "bulan", "tahun"].includes(
+                            field.name,
+                          ),
+                        )
+                        .map(renderField)}
+                    </div>
+                  </section>
+
+                  <section className="space-y-4 rounded-2xl border border-border bg-muted/20 p-5">
+                    <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                      <MapPin className="size-4 text-primary" />
+                      Rincian luas areal (hektare)
+                    </h4>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {fields
+                        .filter((field) =>
+                          [
+                            "luas_tanam_ha",
+                            "luas_panen_ha",
+                            "luas_puso_ha",
+                          ].includes(field.name),
+                        )
+                        .map(renderField)}
+                    </div>
+                  </section>
+
+                  {fields
+                    .filter((field) => field.name === "catatan")
+                    .map(renderField)}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {fields.map(renderField)}
+                </div>
+              )}
+              <div
+                className={`mt-5 flex flex-col-reverse gap-3 border-t border-border pt-6 ${
+                  resource === "provitas" || resource === "luas-areal"
+                    ? "sm:flex-row sm:items-center sm:justify-between"
+                    : "sm:flex-row sm:justify-end"
+                }`}
+              >
+                {(resource === "provitas" || resource === "luas-areal") && (
+                  <p className="text-xs text-muted-foreground">
+                    {resource === "provitas"
+                      ? "Data akan langsung tersimpan saat dikirim."
+                      : "Data akan langsung tersimpan dan bisa diperbarui kapan saja."}
+                  </p>
+                )}
+                <div className="flex items-center gap-2.5 sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFormOpen(false)}
+                    disabled={isSaving}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {editingId ? "Batalkan Edit" : "Batal"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 gap-2 font-semibold shadow-xs sm:flex-none"
+                  >
+                    <Save className="size-4" />
+                    {isSaving
+                      ? "Menyimpan..."
+                      : resource === "provitas"
+                        ? editingId
+                          ? "Simpan Perubahan"
+                          : "Simpan Provitas"
+                        : resource === "luas-areal"
+                          ? "Simpan Laporan"
+                          : "Simpan"}
+                  </Button>
+                </div>
               </div>
             </form>
           )}

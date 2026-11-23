@@ -5,11 +5,9 @@ import {
   AlertCircle,
   Calculator,
   CheckCircle2,
-  ChevronRight,
   Info,
   MapPin,
   Save,
-  Sparkles,
   Sprout,
 } from "lucide-react";
 import {
@@ -276,19 +274,6 @@ export default function ProvitasEntry({
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-3">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onCancelEdit}
-          className="-ml-2 text-muted-foreground"
-        >
-          Data Provitas
-        </Button>
-        <ChevronRight className="size-4 text-muted-foreground" />
-        <span className="font-medium text-foreground">Formulir</span>
-      </nav>
       <Card
         ref={formCardRef}
         className="scroll-mt-24 shadow-md"
@@ -310,12 +295,6 @@ export default function ProvitasEntry({
               </CardDescription>
             </div>
           </div>
-          <Badge
-            variant={isOnline ? "success" : "warning"}
-            className="w-fit"
-          >
-            {isOnline ? "Mode Online" : "Mode Offline"}
-          </Badge>
         </div>
       </CardHeader>
 
@@ -562,43 +541,6 @@ export default function ProvitasEntry({
               </div>
             </div>
 
-            {/* Live Calculation Preview Card */}
-            <div className="rounded-xl border border-primary/20 bg-secondary/50 p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-                    <Sparkles className="size-3.5" />
-                    <span>Estimasi Produktivitas (Provitas)</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Rumus: <code className="font-mono bg-background px-1.5 py-0.5 rounded text-foreground">(Berat Gabah kg / Luas Petak m²) × 100</code>
-                  </p>
-                </div>
-                <div className="text-right">
-                  {provitasPreview !== null ? (
-                    <div className="flex items-baseline gap-1.5 justify-end">
-                      <span className="text-3xl font-extrabold text-primary">
-                        {provitasPreview.toFixed(2)}
-                      </span>
-                      <span className="text-sm font-bold text-foreground">Ku/Ha</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs font-medium text-muted-foreground italic">
-                      Masukkan luas petak dan berat gabah
-                    </span>
-                  )}
-                </div>
-              </div>
-              {provitasExceedsLimit && (
-                <p
-                  aria-live="polite"
-                  className="mt-3 text-sm font-medium text-destructive"
-                >
-                  Estimasi provitas melebihi batas maksimum 1.000 Ku/Ha.
-                  Periksa kembali luas petak dan berat gabah.
-                </p>
-              )}
-            </div>
           </div>
 
           {/* Section: Catatan Tambahan */}

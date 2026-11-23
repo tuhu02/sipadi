@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   FileText,
   MapPin,
   Save,
@@ -205,22 +204,7 @@ export default function LuasArealEntry({
   }
 
   return (
-    <div className="space-y-3">
-      {onCancelEdit && (
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onCancelEdit}
-            className="-ml-2 text-muted-foreground"
-          >
-            Luas Areal
-          </Button>
-          <ChevronRight className="size-4 text-muted-foreground" />
-          <span className="font-medium text-foreground">Formulir</span>
-        </nav>
-      )}
+    <div className="mx-auto w-full max-w-4xl space-y-3">
       <Card className="shadow-md">
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

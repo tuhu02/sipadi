@@ -568,7 +568,6 @@ export default function Dashboard({
                 pendingLuasArealCount={pendingLuasAreal.length}
                 isProvitasEntryOpen={isProvitasEntryOpen}
                 isAreaEntryOpen={isAreaEntryOpen}
-                onSectionChange={setSection}
                 onToggleProvitasEntry={handleToggleProvitasEntry}
                 onToggleAreaEntry={handleToggleAreaEntry}
                 onSaveProvitas={handleSaveProvitas}

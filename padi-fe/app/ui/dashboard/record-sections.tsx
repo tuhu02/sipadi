@@ -79,33 +79,6 @@ export function ProvitasSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {isEntryOpen && isPpl && (
-        references ? (
-          <ProvitasEntry
-            key={`${editRecord?.id ?? "new"}:${selectedLahanId}`}
-            kecamatan={references.kecamatan}
-            desa={references.desa}
-            lahan={references.lahan}
-            musimTanam={references.musim_tanam}
-            records={records}
-            editRecord={editRecord}
-            initialLahanId={editRecord?.lahan_id ?? selectedLahanId}
-            onSave={onSave}
-            isOnline={isOnline}
-            onCancelEdit={onCancelEdit}
-          />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Form Pencatatan Belum Tersedia</CardTitle>
-              <CardDescription>
-                Form memerlukan daftar kecamatan tugas, desa, lahan, dan musim tanam. Hubungkan perangkat ke internet dan muat ulang referensi.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )
-      )}
-
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-foreground">Catatan Data Provitas</h2>
@@ -178,6 +151,14 @@ export function ProvitasSection({
                     <ChevronRight className="size-4 text-muted-foreground" />
                     <span className="px-2 font-semibold text-foreground">
                       {selectedLahan?.kode_sampel}
+                    </span>
+                  </>
+                )}
+                {selectedLahanId && isEntryOpen && (
+                  <>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                    <span className="px-2 font-medium text-foreground">
+                      {editRecord ? "Edit" : "Tambah"}
                     </span>
                   </>
                 )}
@@ -294,7 +275,21 @@ export function ProvitasSection({
                       </Button>
                     )}
                   </div>
-                  {selectedLahanRecords.length > 0 ? (
+                  {isEntryOpen && isPpl ? (
+                    <ProvitasEntry
+                      key={`${editRecord?.id ?? "new"}:${selectedLahanId}`}
+                      kecamatan={references.kecamatan}
+                      desa={references.desa}
+                      lahan={references.lahan}
+                      musimTanam={references.musim_tanam}
+                      records={records}
+                      editRecord={editRecord}
+                      initialLahanId={editRecord?.lahan_id ?? selectedLahanId}
+                      onSave={onSave}
+                      isOnline={isOnline}
+                      onCancelEdit={onCancelEdit}
+                    />
+                  ) : selectedLahanRecords.length > 0 ? (
                     <div className="overflow-x-auto rounded-xl border border-border">
                       <Table>
                         <TableHeader>
@@ -399,30 +394,6 @@ export function LuasArealSection({
 
   return (
     <div className="flex flex-col gap-6">
-      {isEntryOpen && isPpl && (
-        references ? (
-          <LuasArealEntry
-            key={editRecord?.id ?? "new"}
-            desa={references.desa}
-            records={records}
-            isOnline={isOnline}
-            onSave={onSave}
-            editRecord={editRecord}
-            initialDesaId={editRecord?.desa_id ?? selectedDesaId}
-            onCancelEdit={onCancelEdit}
-          />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Referensi Desa Belum Tersedia</CardTitle>
-              <CardDescription>
-                Hubungkan perangkat ke internet untuk memuat data referensi desa sebelum membuat laporan luas areal.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )
-      )}
-
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -480,6 +451,14 @@ export function LuasArealSection({
                     <ChevronRight className="size-4 text-muted-foreground" />
                     <span className="px-2 font-semibold text-foreground">
                       {selectedDesa?.nama}
+                    </span>
+                  </>
+                )}
+                {selectedDesaId && isEntryOpen && (
+                  <>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                    <span className="px-2 font-medium text-foreground">
+                      {editRecord ? "Edit" : "Tambah"}
                     </span>
                   </>
                 )}
@@ -569,7 +548,18 @@ export function LuasArealSection({
                       )}
                     </div>
                   </div>
-                  {selectedDesaRecords.length > 0 ? (
+                  {isEntryOpen && isPpl ? (
+                    <LuasArealEntry
+                      key={editRecord?.id ?? "new"}
+                      desa={references.desa}
+                      records={records}
+                      isOnline={isOnline}
+                      onSave={onSave}
+                      editRecord={editRecord}
+                      initialDesaId={editRecord?.desa_id ?? selectedDesaId}
+                      onCancelEdit={onCancelEdit}
+                    />
+                  ) : selectedDesaRecords.length > 0 ? (
                     <div className="overflow-x-auto rounded-xl border border-border">
                       <Table>
                         <TableHeader>
