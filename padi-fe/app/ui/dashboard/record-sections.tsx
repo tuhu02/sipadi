@@ -535,7 +535,7 @@ export function LuasArealSection({
                           {selectedDesaRecords.length} laporan bulanan
                         </p>
                       </div>
-                      {isPpl && selectedDesaRecords.length === 0 && !isEntryOpen && (
+                      {isPpl && !isEntryOpen && (
                         <Button
                           type="button"
                           variant="default"
