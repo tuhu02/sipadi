@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { AdminResource } from "@/app/lib/admin";
 import {
   AlertCircle,
-  CheckCircle2,
   RefreshCw,
 } from "lucide-react";
 import { ApiError } from "@/app/lib/api";
@@ -73,7 +72,6 @@ export default function Dashboard({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [syncError, setSyncError] = useState("");
-  const [syncMessage, setSyncMessage] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [online, setOnline] = useState(true);
   const syncInProgress = useRef(false);
@@ -285,12 +283,41 @@ export default function Dashboard({
   }, []);
 
   const visibleProvitas = useMemo(() => {
-    const merged = new Map<string, SyncRecord>();
-    for (const record of localProvitas) merged.set(record.id, record);
-    for (const record of references?.provitas ?? []) {
-      merged.set(record.id, record);
+    const keyOf = (record: SyncRecord) =>
+      record.lahan_id && record.musim_tanam_id
+        ? `${record.lahan_id}:${record.musim_tanam_id}`
+        : record.id;
+    const serverRecords = (references?.provitas ?? []).filter(
+      (record) => !record.deleted,
+    );
+    const recordsByKey = new Map<string, SyncRecord>();
+    const serverKeys = new Set<string>();
+
+    for (const record of serverRecords) {
+      const key = keyOf(record);
+      recordsByKey.set(key, record);
+      serverKeys.add(key);
     }
-    return [...merged.values()].filter((record) => !record.deleted);
+
+    for (const record of localProvitas) {
+      if (record.deleted) continue;
+
+      const key = keyOf(record);
+      const existing = recordsByKey.get(key);
+      if (serverKeys.has(key)) {
+        if (existing?.id === record.id) recordsByKey.set(key, record);
+        continue;
+      }
+
+      if (
+        !existing ||
+        Date.parse(record.updated_at) > Date.parse(existing.updated_at)
+      ) {
+        recordsByKey.set(key, record);
+      }
+    }
+
+    return [...recordsByKey.values()];
   }, [localProvitas, references]);
 
   const visibleLuasAreal = useMemo(() => {
@@ -317,9 +344,9 @@ export default function Dashboard({
       .filter(
         (record) =>
           !record.synced_at &&
-          !record.sync_error
+          (!record.sync_error || record.sync_error === "duplikat")
       )
-      .map((record) => `${record.id}:${record.updated_at}`)
+      .map((record) => `${record.id}:${record.updated_at}:${record.sync_error ?? ""}`)
       .sort()
       .join("|") +
     "::" +
@@ -336,12 +363,17 @@ export default function Dashboard({
   async function handleSaveProvitas(record: LocalProvitas) {
     await saveLocalProvitas(user.id, record);
     setLocalProvitas(await getLocalProvitas(user.id));
-    if (editingProvitas?.id === record.id) {
+    const isEditing = editingProvitas?.id === record.id;
+    if (isEditing) {
       setEditingProvitas(null);
-      setIsProvitasEntryOpen(false);
       toast.success("Perubahan catatan provitas berhasil disimpan.");
+    } else if (!online) {
+      toast.success(
+        "Catatan provitas tersimpan offline. Akan disinkronkan saat online."
+      );
     }
     setSyncError("");
+    setIsProvitasEntryOpen(false);
   }
 
   function handleEditProvitas(record: SyncRecord) {
@@ -437,13 +469,13 @@ export default function Dashboard({
       syncInProgress.current = true;
       setIsSyncing(true);
       setSyncError("");
-      if (!automatic) setSyncMessage("");
 
       try {
         const pendingRecords = (await getLocalProvitas(user.id)).filter(
           (record) =>
             (automatic
-              ? !record.synced_at && !record.sync_error
+              ? !record.synced_at &&
+                (!record.sync_error || record.sync_error === "duplikat")
               : !record.synced_at || record.sync_error)
         );
         const pendingAreaRecords = (await getLocalLuasAreal(user.id)).filter(
@@ -492,16 +524,29 @@ export default function Dashboard({
             .length +
           result.hasil.luas_areal.filter((item) => item.hasil_sync === "ditolak")
             .length;
+        const duplicateRejected = result.hasil.provitas.some(
+          (item) =>
+            item.hasil_sync === "ditolak" && item.alasan === "duplikat"
+        );
 
         if (
           pendingRecords.length + pendingAreaRecords.length > 0 ||
           !automatic
         ) {
-          setSyncMessage(
+          const message =
             pendingRecords.length + pendingAreaRecords.length === 0
               ? "Sinkronisasi selesai. Status terbaru dari server sudah diperbarui."
-              : `${accepted} data diterima${rejected ? `, ${rejected} data perlu diperbaiki` : ""}.`
-          );
+              : `${accepted} data diterima${rejected ? `, ${rejected} data perlu diperbaiki` : ""}.`;
+          if (rejected) {
+            toast.error(
+              duplicateRejected
+                ? `${message} Catatan untuk lahan dan musim tanam tersebut sudah ada.`
+                : message,
+              { duration: 4000 }
+            );
+          } else {
+            toast.success(message, { duration: 4000 });
+          }
         }
       } catch (requestError: unknown) {
         setSyncError(
@@ -613,13 +658,6 @@ export default function Dashboard({
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
                   <AlertDescription>{syncError}</AlertDescription>
-                </Alert>
-              )}
-
-              {syncMessage && (
-                <Alert variant="success">
-                  <CheckCircle2 className="size-4" />
-                  <AlertDescription>{syncMessage}</AlertDescription>
                 </Alert>
               )}
 

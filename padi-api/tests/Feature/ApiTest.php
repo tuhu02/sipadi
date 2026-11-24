@@ -271,10 +271,11 @@ class ApiTest extends TestCase
             'berat_gabah_kg' => 50,
             'updated_at' => '2026-05-01T10:00:00Z',
         ];
+        $existingId = fake()->uuid();
 
         $this->withToken($token)->postJson('/api/sync', ['provitas' => [[
             ...$baseRecord,
-            'id' => fake()->uuid(),
+            'id' => $existingId,
             'tanggal_panen' => '2026-05-01',
         ]]])->assertJsonPath('hasil.provitas.0.hasil_sync', 'diterima');
 
@@ -284,7 +285,8 @@ class ApiTest extends TestCase
             'tanggal_panen' => '2026-05-02',
             'updated_at' => '2026-05-02T10:00:00Z',
         ]]])->assertJsonPath('hasil.provitas.0.hasil_sync', 'ditolak')
-            ->assertJsonPath('hasil.provitas.0.alasan', 'duplikat');
+            ->assertJsonPath('hasil.provitas.0.alasan', 'duplikat')
+            ->assertJsonPath('hasil.provitas.0.versi_server.id', $existingId);
 
         $this->assertDatabaseCount('provitas', 1);
     }

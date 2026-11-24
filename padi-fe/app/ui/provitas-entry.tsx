@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Calculator,
-  CheckCircle2,
   Info,
   MapPin,
   Save,
@@ -97,11 +96,11 @@ export default function ProvitasEntry({
   const [catatan, setCatatan] = useState(editRecord?.catatan ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [touchedFields, setTouchedFields] = useState<
     Record<NumericField, boolean>
   >({ luasPetak: false, beratGabah: false, kadarAir: false });
   const formCardRef = useRef<HTMLDivElement>(null);
+  const saveInProgress = useRef(false);
 
   useEffect(() => {
     if (editRecord) {
@@ -164,10 +163,11 @@ export default function ProvitasEntry({
   };
 
   async function saveRecord(form: HTMLFormElement) {
+    if (saveInProgress.current) return;
+
     setTouchedFields({ luasPetak: true, beratGabah: true, kadarAir: true });
     if (!form.reportValidity()) return;
     setError("");
-    setSuccess("");
 
     if (!kecamatanId || !desaId || !lahanId || !musimTanamId) {
       setError("Pilih kecamatan, desa, lahan, dan musim tanam.");
@@ -224,6 +224,7 @@ export default function ProvitasEntry({
       return;
     }
 
+    saveInProgress.current = true;
     setIsSaving(true);
 
     try {
@@ -244,23 +245,6 @@ export default function ProvitasEntry({
       };
 
       await onSave(record);
-
-      setSuccess(
-        isOnline
-          ? "Catatan provitas berhasil disimpan."
-          : "Catatan provitas tersimpan offline. Akan disinkronkan saat online."
-      );
-
-      // Reset form
-      setKecamatanId("");
-      setDesaId("");
-      setLahanId("");
-      setMusimTanamId("");
-      setTanggalPanen("");
-      setLuasPetak("6.25");
-      setBeratGabah("");
-      setKadarAir("");
-      setCatatan("");
     } catch (saveError: unknown) {
       setError(
         saveError instanceof Error
@@ -268,6 +252,7 @@ export default function ProvitasEntry({
           : "Catatan provitas belum dapat disimpan."
       );
     } finally {
+      saveInProgress.current = false;
       setIsSaving(false);
     }
   }
@@ -315,13 +300,6 @@ export default function ProvitasEntry({
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="size-4" />
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert variant="success" className="mb-6">
-            <CheckCircle2 className="size-4" />
-            <AlertDescription>{success}</AlertDescription>
           </Alert>
         )}
 

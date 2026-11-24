@@ -72,7 +72,20 @@ class SyncController extends Controller
             DB::transaction(fn () => Provitas::updateOrCreate(['id' => $id], $values));
             return ['id' => $id, 'hasil_sync' => 'diterima', 'alasan' => null];
         } catch (QueryException $e) {
-            return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => 'duplikat'];
+            $existing = isset($validated)
+                ? Provitas::where('lahan_id', $validated['lahan_id'])
+                    ->where('musim_tanam_id', $validated['musim_tanam_id'])
+                    ->where('ppl_id', $user->id)
+                    ->where('deleted', false)
+                    ->first()
+                : null;
+
+            return [
+                'id' => $id,
+                'hasil_sync' => 'ditolak',
+                'alasan' => 'duplikat',
+                ...($existing ? ['versi_server' => $existing] : []),
+            ];
         } catch (Throwable $e) {
             return ['id' => $id, 'hasil_sync' => 'ditolak', 'alasan' => $e->getMessage()];
         }

@@ -163,10 +163,19 @@ export async function updateProvitasAfterSync(
       const serverRecord = serverById.get(localRecord.id) ?? syncResult?.versi_server;
 
       if (syncResult?.hasil_sync === "ditolak") {
-        store.put({
-          ...(syncResult.versi_server ?? localRecord),
-          sync_error: syncResult.alasan ?? "Record ditolak oleh server.",
-        });
+        const conflictingServerRecord = syncResult.versi_server;
+        if (
+          conflictingServerRecord &&
+          conflictingServerRecord.id !== localRecord.id
+        ) {
+          store.delete(localRecord.id);
+          store.put({ ...conflictingServerRecord, sync_error: null });
+        } else {
+          store.put({
+            ...(conflictingServerRecord ?? localRecord),
+            sync_error: syncResult.alasan ?? "Record ditolak oleh server.",
+          });
+        }
         continue;
       }
 
