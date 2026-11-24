@@ -585,6 +585,42 @@ export function AdminManagementSection({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const navigateLocation = useCallback(
+    (kecamatanId: string, desaId = "", lahanId = "") => {
+      setSelectedKecamatanId(kecamatanId);
+      setSelectedDesaId(desaId);
+      setSelectedLahanId(lahanId);
+
+      const url = new URL(window.location.href);
+      for (const [key, value] of [
+        ["kecamatan", kecamatanId],
+        ["desa", desaId],
+        ["lahan", lahanId],
+      ]) {
+        if (value) {
+          url.searchParams.set(key, value);
+        } else {
+          url.searchParams.delete(key);
+        }
+      }
+      window.history.pushState(null, "", url);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    function restoreLocation() {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedKecamatanId(params.get("kecamatan") ?? "");
+      setSelectedDesaId(params.get("desa") ?? "");
+      setSelectedLahanId(params.get("lahan") ?? "");
+    }
+
+    restoreLocation();
+    window.addEventListener("popstate", restoreLocation);
+    return () => window.removeEventListener("popstate", restoreLocation);
+  }, [resource]);
+
   const loadRecords = useCallback(async () => {
     setIsLoading(true);
     setError("");
@@ -977,11 +1013,7 @@ export function AdminManagementSection({
             variant="ghost"
             size="sm"
             disabled={!selectedKecamatanId}
-            onClick={() => {
-              setSelectedKecamatanId("");
-              setSelectedDesaId("");
-              setSelectedLahanId("");
-            }}
+            onClick={() => navigateLocation("")}
           >
             Kecamatan
           </Button>
@@ -993,10 +1025,7 @@ export function AdminManagementSection({
                 variant={selectedDesa ? "ghost" : "secondary"}
                 size="sm"
                 disabled={!selectedDesa}
-                onClick={() => {
-                  setSelectedDesaId("");
-                  setSelectedLahanId("");
-                }}
+                onClick={() => navigateLocation(selectedKecamatanId)}
               >
                 {recordValue(selectedKecamatan, "nama")}
               </Button>
@@ -1010,7 +1039,9 @@ export function AdminManagementSection({
                 variant={selectedLahan ? "ghost" : "secondary"}
                 size="sm"
                 disabled={!selectedLahan}
-                onClick={() => setSelectedLahanId("")}
+                onClick={() =>
+                  navigateLocation(selectedKecamatanId, selectedDesaId)
+                }
               >
                 {recordValue(selectedDesa, "nama")}
               </Button>
@@ -1033,11 +1064,7 @@ export function AdminManagementSection({
                 <button
                   key={kecamatan.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedKecamatanId(kecamatan.id);
-                    setSelectedDesaId("");
-                    setSelectedLahanId("");
-                  }}
+                  onClick={() => navigateLocation(kecamatan.id)}
                   className="rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex items-center justify-between">
@@ -1070,7 +1097,9 @@ export function AdminManagementSection({
                 <button
                   key={desa.id}
                   type="button"
-                  onClick={() => setSelectedDesaId(desa.id)}
+                  onClick={() =>
+                    navigateLocation(selectedKecamatanId, desa.id)
+                  }
                   className="rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex items-center justify-between">
@@ -1134,7 +1163,13 @@ export function AdminManagementSection({
                 <button
                   key={lahan.id}
                   type="button"
-                  onClick={() => setSelectedLahanId(lahan.id)}
+                  onClick={() =>
+                    navigateLocation(
+                      selectedKecamatanId,
+                      selectedDesaId,
+                      lahan.id,
+                    )
+                  }
                   className="rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex items-center justify-between">

@@ -36,7 +36,11 @@ import {
 } from "@/app/ui/dashboard/navigation";
 import NotificationInbox from "@/app/ui/notification-inbox";
 import { DashboardSectionContent } from "@/app/ui/dashboard/section-content";
-import { DashboardSection, navigation } from "@/app/ui/dashboard/types";
+import {
+  adminNavigationItems,
+  DashboardSection,
+  navigation,
+} from "@/app/ui/dashboard/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -55,8 +59,9 @@ export default function Dashboard({
   isLoggingOut,
   onLogout,
 }: DashboardProps) {
-  const [section, setSection] = useState<DashboardSection>("ringkasan");
-  const [adminResource, setAdminResource] = useState<AdminResource>("users");
+  const [section, setSectionState] = useState<DashboardSection>("ringkasan");
+  const [adminResource, setAdminResourceState] =
+    useState<AdminResource>("users");
   const [references, setReferences] = useState<References | null>(null);
   const [localProvitas, setLocalProvitas] = useState<LocalProvitas[]>([]);
   const [localLuasAreal, setLocalLuasAreal] = useState<LocalLuasAreal[]>([]);
@@ -79,6 +84,68 @@ export default function Dashboard({
       (!item.pplOnly || user.role === "ppl") &&
       (!item.adminOnly || user.role === "admin")
   );
+
+  const readNavigationState = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedSection = params.get("section");
+    const availableSection = navigation.find(
+      (item) =>
+        item.id === requestedSection &&
+        (!item.pplOnly || user.role === "ppl") &&
+        (!item.adminOnly || user.role === "admin")
+    );
+    const requestedResource = params.get("resource");
+    const resource = adminNavigationItems.find(
+      (item) => item.id === requestedResource
+    );
+
+    return {
+      section: availableSection?.id ?? "ringkasan",
+      resource: resource?.id ?? "users",
+    };
+  }, [user.role]);
+
+  useEffect(() => {
+    function restoreNavigationState() {
+      const state = readNavigationState();
+      setSectionState(state.section);
+      setAdminResourceState(state.resource);
+    }
+
+    restoreNavigationState();
+    window.addEventListener("popstate", restoreNavigationState);
+    return () => window.removeEventListener("popstate", restoreNavigationState);
+  }, [readNavigationState]);
+
+  const updateNavigationUrl = useCallback(
+    (key: "section" | "resource", value: string) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set(key, value);
+      window.history.pushState(null, "", url);
+    },
+    []
+  );
+
+  const handleSectionChange = useCallback(
+    (nextSection: DashboardSection) => {
+      setSectionState(nextSection);
+      updateNavigationUrl("section", nextSection);
+    },
+    [updateNavigationUrl]
+  );
+
+  const handleAdminResourceChange = useCallback(
+    (nextResource: AdminResource) => {
+      setAdminResourceState(nextResource);
+      setSectionState("admin");
+      const url = new URL(window.location.href);
+      url.searchParams.set("section", "admin");
+      url.searchParams.set("resource", nextResource);
+      window.history.pushState(null, "", url);
+    },
+    []
+  );
+
   const showLoadError = useCallback((requestError: unknown) => {
     if (requestError instanceof ApiError && requestError.status === 401) {
       setLoadError(
@@ -280,7 +347,7 @@ export default function Dashboard({
   function handleEditProvitas(record: SyncRecord) {
     setEditingProvitas(record);
     setIsProvitasEntryOpen(true);
-    setSection("provitas");
+    handleSectionChange("provitas");
   }
 
   async function handleDeleteProvitas(record: SyncRecord) {
@@ -329,7 +396,7 @@ export default function Dashboard({
   function handleEditArea(record: SyncRecord) {
     setEditingArea(record);
     setIsAreaEntryOpen(true);
-    setSection("luas_areal");
+    handleSectionChange("luas_areal");
   }
 
   async function handleDeleteArea(record: SyncRecord) {
@@ -486,11 +553,12 @@ export default function Dashboard({
       )}
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <DashboardSidebar
+          key={section === "admin" ? "admin" : "other"}
           items={visibleNavigation}
           section={section}
-          onSectionChange={setSection}
+          onSectionChange={handleSectionChange}
           adminResource={adminResource}
-          onAdminResourceChange={setAdminResource}
+          onAdminResourceChange={handleAdminResourceChange}
           user={user}
           isLoggingOut={isLoggingOut}
           onLogout={onLogout}
@@ -498,11 +566,12 @@ export default function Dashboard({
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileNavigation
+            key={section === "admin" ? "admin" : "other"}
             items={visibleNavigation}
             section={section}
-            onSectionChange={setSection}
+            onSectionChange={handleSectionChange}
             adminResource={adminResource}
-            onAdminResourceChange={setAdminResource}
+            onAdminResourceChange={handleAdminResourceChange}
             user={user}
             isLoggingOut={isLoggingOut}
             onLogout={onLogout}

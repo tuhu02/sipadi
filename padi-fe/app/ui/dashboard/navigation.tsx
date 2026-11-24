@@ -156,13 +156,11 @@ function NavigationButton({
 function AdminResourceLinks({
   section,
   resource,
-  onSectionChange,
   onResourceChange,
   mobile = false,
 }: {
   section: DashboardSection;
   resource: AdminResource;
-  onSectionChange: (section: DashboardSection) => void;
   onResourceChange: (resource: AdminResource) => void;
   mobile?: boolean;
 }) {
@@ -181,10 +179,7 @@ function AdminResourceLinks({
             key={item.id}
             type="button"
             aria-current={active ? "page" : undefined}
-            onClick={() => {
-              onResourceChange(item.id);
-              onSectionChange("admin");
-            }}
+            onClick={() => onResourceChange(item.id)}
             className={cn(
               "shrink-0 rounded-lg text-left text-sm transition-colors",
               mobile ? "px-3 py-2" : "px-3 py-2",
@@ -243,7 +238,6 @@ export function DashboardSidebar({
                   <AdminResourceLinks
                     section={section}
                     resource={adminResource}
-                    onSectionChange={onSectionChange}
                     onResourceChange={onAdminResourceChange}
                   />
                 )}
@@ -334,7 +328,6 @@ export function MobileNavigation({
         <AdminResourceLinks
           section={section}
           resource={adminResource}
-          onSectionChange={onSectionChange}
           onResourceChange={onAdminResourceChange}
           mobile
         />
